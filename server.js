@@ -39,7 +39,7 @@ app.post("/chat", async (req, res) => {
     ];
 
     const completion = await openai.chat.completions.create({
-      model: "o1",
+      model: "gpt-4-1106-preview",
       messages: chatHistory
     });
 
