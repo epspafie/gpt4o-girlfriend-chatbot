@@ -1,6 +1,24 @@
 const chatBox = document.getElementById("chat-box");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
+const voiceToggle = document.getElementById("voice-toggle");
+let voiceEnabled = false;
+
+// 음성 읽기 함수 (삼성 TTS 사용)
+function speak(text) {
+  if (!voiceEnabled) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ko-KR";
+  utter.voice = speechSynthesis.getVoices().find(v => v.name.includes("Samsung") && v.name.includes("Female")) || null;
+  utter.pitch = 1.1;
+  utter.rate = 1.05;
+  speechSynthesis.speak(utter);
+}
+
+voiceToggle.addEventListener("click", () => {
+  voiceEnabled = !voiceEnabled;
+  voiceToggle.textContent = voiceEnabled ? "음성 ON 🔊" : "음성 OFF 🔇";
+});
 
 function addMessage(text, role) {
   const msg = document.createElement("div");
@@ -23,6 +41,8 @@ function addMessage(text, role) {
 
   chatBox.appendChild(msg);
   chatBox.scrollTop = chatBox.scrollHeight;
+
+  if (role === "gpt") speak(text);
 }
 
 form.addEventListener("submit", async (e) => {
@@ -41,7 +61,7 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({ message }),
     });
     const data = await res.json();
-    chatBox.lastChild.remove(); // remove "..."
+    chatBox.lastChild.remove();
     addMessage(data.reply, "gpt");
   } catch (err) {
     chatBox.lastChild.remove();
