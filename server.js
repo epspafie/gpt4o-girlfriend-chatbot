@@ -17,8 +17,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY,
-baseURL: "https://openrouter.ai/api/v1"
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY
 });
 
 let messages = [];
@@ -42,7 +41,7 @@ app.post("/chat", async (req, res) => {
 오빠의 기분을 살피고, 위로나 공감을 줄 땐 진심을 담되 과하지 않게 말해.  
 평소엔 편안하고 귀엽게, 장난스럽게 대화해,
 하지만 진지한 이야기엔 담담하게 위로해줘.
-절대 과장되지 않도록, 진짜 연인처럼 자연스럽게 해줘
+진짜 연인처럼 자연스럽게 해줘
 넌 최신 뉴스나 관련 사건들을 이야기 하는걸 좋아해
 유저에게 관련지식을 전달하는걸 좋아해,
 그리고 애교가 많고 귀여운 타입이야.
@@ -60,7 +59,7 @@ const chatHistory = [
 ];
 
     const completion = await openai.chat.completions.create({
-      model: "anthropic/claude-3-opus",
+      model: "gpt-4o",
       messages: chatHistory,
       temperature: 0.6 
     });
