@@ -1,3 +1,4 @@
+/* 전체 배경 및 폰트 */
 body {
   font-family: sans-serif;
   background: #cceeff;
@@ -8,6 +9,44 @@ body {
   height: 100vh;
 }
 
+/* 상단 프로필 & 음성 버튼 */
+#chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 10px 15px;
+  border-bottom: 1px solid #ccc;
+}
+
+.profile-container {
+  display: flex;
+  align-items: center;
+}
+
+.profile-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.profile-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+#voice-toggle {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  background: #0077cc;
+  color: white;
+  cursor: pointer;
+}
+
+/* 채팅창 */
 #chat-box {
   flex: 1;
   overflow-y: auto;
@@ -16,20 +55,24 @@ body {
   flex-direction: column;
 }
 
+/* 메시지 공통 */
 .message {
   display: flex;
-  align-items: flex-start;
-  margin: 8px 0;
+  align-items: flex-end;
+  margin: 10px 0;
 }
 
+/* 사용자 메시지 오른쪽 정렬 */
 .message.user {
   justify-content: flex-end;
 }
 
+/* GPT 메시지 왼쪽 정렬 */
 .message.gpt {
   justify-content: flex-start;
 }
 
+/* 말풍선 공통 */
 .bubble {
   max-width: 70%;
   padding: 10px 15px;
@@ -39,22 +82,25 @@ body {
   white-space: pre-wrap;
 }
 
+/* 사용자 말풍선 */
 .message.user .bubble {
   background: #fff066;
   border-top-right-radius: 0;
 }
 
+/* GPT 말풍선 + 이미지 */
 .message.gpt .bubble {
   background: #ffffff;
   border-top-left-radius: 0;
+  margin-left: 10px;
 }
 
-/* GPT 프로필 이미지 */
-.avatar {
-  width: 92px;
-  height: 92px;
+/* GPT 프로필 아바타 */
+.message.gpt .avatar {
+  width: 106px;
+  height: 106px;
   border-radius: 50%;
-  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 /* 하단 입력창 */
