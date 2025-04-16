@@ -1,45 +1,54 @@
-
 body {
-  font-family: sans-serif;
-  background: #cceeff;
+  font-family: 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+  background-color: #d7edff;
 }
-#chat-box {
-  flex: 1;
-  overflow-y: auto;
+
+.chat-container {
+  max-width: 700px;
+  margin: 20px auto;
   padding: 10px;
 }
+
 .message {
-  max-width: 80%;
-  margin: 5px;
-  padding: 10px;
-  border-radius: 15px;
-  line-height: 1.4;
-}
-.user { background: #fff066; align-self: flex-end; }
-.gpt { background: #fff; align-self: flex-start; }
-form {
   display: flex;
-  padding: 10px;
-  background: #f0f0f0;
+  margin: 10px 0;
+  align-items: flex-start;
 }
-input {
-  flex: 1;
-  padding: 10px;
-  font-size: 1rem;
-  border-radius: 10px;
-  border: 1px solid #ccc;
+
+.message.gpt {
+  flex-direction: row;
 }
-button {
+
+.message.user {
+  flex-direction: row-reverse;
+}
+
+.bubble {
+  max-width: 70%;
+  padding: 10px 15px;
+  border-radius: 20px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.gpt .bubble {
+  background-color: white;
+  color: #000;
   margin-left: 10px;
-  padding: 0 20px;
-  border: none;
-  background: #0077cc;
-  color: white;
-  border-radius: 10px;
-  cursor: pointer;
+}
+
+.user .bubble {
+  background-color: #fff176;
+  color: #000;
+  margin-right: 10px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
 }
