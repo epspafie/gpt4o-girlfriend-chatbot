@@ -55,7 +55,7 @@ const chatHistory = [
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-1106-preview",
-      messages: chatHistory
+      messages: chatHistory,
       temperature: 0.9 
     });
 
