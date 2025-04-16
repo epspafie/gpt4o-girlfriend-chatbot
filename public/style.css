@@ -1,0 +1,45 @@
+
+body {
+  font-family: sans-serif;
+  background: #cceeff;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+#chat-box {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.message {
+  max-width: 80%;
+  margin: 5px;
+  padding: 10px;
+  border-radius: 15px;
+  line-height: 1.4;
+}
+.user { background: #fff066; align-self: flex-end; }
+.gpt { background: #fff; align-self: flex-start; }
+form {
+  display: flex;
+  padding: 10px;
+  background: #f0f0f0;
+}
+input {
+  flex: 1;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+button {
+  margin-left: 10px;
+  padding: 0 20px;
+  border: none;
+  background: #0077cc;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
