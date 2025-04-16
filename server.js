@@ -17,7 +17,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY,
+baseURL: "https://openrouter.ai/api/v1"
+});
 
 let messages = [];
 let lastMessageTime = null;
