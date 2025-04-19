@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { saveMessage } from "./saveMessage.js"; // ✅ 기존 유지
-import  supabase  from "./supabase.js"; // ✅ 추가
+import supabase from "./supabase.js"; // ✅ 추가
 
 config();
 const app = express();
@@ -111,8 +111,31 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-app.get("/load", (req, res) => {
-  res.json({ messages, summary });
+// ✅ /load 라우트에서 Supabase에서 직접 불러오도록 수정됨
+app.get("/load", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("user_id", "default-user")
+      .order("timestamp", { ascending: true });
+
+    if (error) {
+      console.error("💥 Supabase 메시지 불러오기 실패 (/load):", error.message);
+      return res.status(500).json({ messages: [], summary: "" });
+    }
+
+    const loadedMessages = data.map((m) => ({
+      role: m.role,
+      content: m.message,
+      timestamp: new Date(m.timestamp).getTime(),
+    }));
+
+    res.json({ messages: loadedMessages, summary });
+  } catch (err) {
+    console.error("💥 /load 처리 중 오류:", err.message);
+    res.status(500).json({ messages: [], summary: "" });
+  }
 });
 
 app.listen(PORT, () => {

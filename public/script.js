@@ -73,11 +73,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const res = await fetch("/load");
   const data = await res.json();
 
-  if (data.summary) {
-    addMessage("[요약 기억] " + data.summary, "gpt");
-  }
-
   data.messages.forEach((m) => {
     addMessage(m.content, m.role === "user" ? "user" : "gpt");
   });
+
+  if (data.summary) {
+    addMessage("[요약 기억] " + data.summary, "gpt");
+  }
 });
