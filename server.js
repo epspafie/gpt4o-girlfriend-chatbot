@@ -5,7 +5,8 @@ import { OpenAI } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { saveMessage } from "./saveMessage.js"; // ✅ 추가된 부분
+import { saveMessage } from "./saveMessage.js"; // ✅ 기존 유지
+import { supabase } from "./supabase.js"; // ✅ 추가
 
 config();
 const app = express();
@@ -22,6 +23,26 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 let messages = [];
 let lastMessageTime = null;
 let summary = "";
+
+// ✅ 서버 시작 시 Supabase에서 messages 불러오기
+(async () => {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .order("timestamp", { ascending: true })
+    .limit(20);
+
+  if (error) {
+    console.error("💥 Supabase 메시지 불러오기 실패:", error.message);
+  } else if (data) {
+    messages = data.map((m) => ({
+      role: m.role,
+      content: m.message,
+      timestamp: new Date(m.timestamp).getTime(),
+    }));
+    console.log("✅ Supabase에서 기존 대화 불러옴:", messages.length, "줄");
+  }
+})();
 
 app.post("/chat", async (req, res) => {
   try {

@@ -22,5 +22,31 @@
   </form>
 
   <script src="script.js"></script>
+
+  <!-- ✅ 자동 대화 복원 스크립트 -->
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const res = await fetch("/load");
+        const data = await res.json();
+        const messages = data.messages || [];
+
+        const chatBox = document.getElementById("chat-box");
+        chatBox.innerHTML = ""; // 기존 내용 초기화
+
+        messages.forEach((m) => {
+          const div = document.createElement("div");
+          div.className = m.role === "user" ? "user-msg" : "gpt-msg";
+          div.textContent = (m.role === "user" ? "🧑‍💬 " : "🧠 ") + m.content;
+          chatBox.appendChild(div);
+        });
+
+        // 자동 스크롤 맨 아래로
+        chatBox.scrollTop = chatBox.scrollHeight;
+      } catch (e) {
+        console.error("대화 불러오기 실패:", e);
+      }
+    });
+  </script>
 </body>
 </html>
