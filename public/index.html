@@ -21,9 +21,11 @@
     <button type="submit">전송</button>
   </form>
 
+  <!-- 메인 스크립트 -->
   <script src="script.js"></script>
 
-  <!-- ✅ 자동 대화 복원 스크립트 -->
+  <!-- ❌ 문제의 원인: 기존 말풍선 덮어쓰기 스크립트 (비활성화 처리) -->
+  <!-- 
   <script>
     window.addEventListener("DOMContentLoaded", async () => {
       try {
@@ -41,12 +43,12 @@
           chatBox.appendChild(div);
         });
 
-        // 자동 스크롤 맨 아래로
         chatBox.scrollTop = chatBox.scrollHeight;
       } catch (e) {
         console.error("대화 불러오기 실패:", e);
       }
     });
   </script>
+  -->
 </body>
 </html>
