@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { saveMessage } from "./saveMessage.js"; // ✅ 기존 유지
-import { supabase } from "./supabase.js"; // ✅ 추가
+import  supabase  from "./supabase.js"; // ✅ 추가
 
 config();
 const app = express();
