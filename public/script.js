@@ -73,10 +73,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const res = await fetch("/load");
   const data = await res.json();
 
+  // ✅ 먼저 과거 대화부터 출력
   data.messages.forEach((m) => {
-    addMessage(m.content, m.role === "user" ? "user" : "gpt");
+    const role = m.role === "user" ? "user" : "gpt";
+    addMessage(m.content, role);
   });
 
+  // ✅ 그 다음 요약 메시지 추가
   if (data.summary) {
     addMessage("[요약 기억] " + data.summary, "gpt");
   }
