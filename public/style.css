@@ -118,3 +118,21 @@ button {
   border-radius: 10px;
   cursor: pointer;
 }
+
+/* 💾 기억 버튼 */
+#save-memory {
+  margin: 10px auto;
+  padding: 10px 18px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  background-color: #ff6699;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+#save-memory:hover {
+  background-color: #ff3366;
+}

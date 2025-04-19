@@ -5,8 +5,8 @@ import { OpenAI } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { saveMessage } from "./saveMessage.js"; // ✅ 기존 유지
-import supabase from "./supabase.js"; // ✅ 추가
+import { saveMessage } from "./saveMessage.js";
+import supabase from "./supabase.js";
 
 config();
 const app = express();
@@ -24,7 +24,6 @@ let messages = [];
 let lastMessageTime = null;
 let summary = "";
 
-// ✅ 서버 시작 시 Supabase에서 messages 불러오기
 (async () => {
   const { data, error } = await supabase
     .from("messages")
@@ -33,14 +32,14 @@ let summary = "";
     .limit(20);
 
   if (error) {
-    console.error("💥 Supabase 메시지 불러오기 실패:", error.message);
+    console.error("\uD83D\uDCA5 Supabase \uBA54\uC2DC\uC9C0 \uBD88\uB7EC\uC624\uAE30 \uC2E4\uD328:", error.message);
   } else if (data) {
     messages = data.map((m) => ({
       role: m.role,
       content: m.message,
       timestamp: new Date(m.timestamp).getTime(),
     }));
-    console.log("✅ Supabase에서 기존 대화 불러옴:", messages.length, "줄");
+    console.log("\u2705 Supabase\uC5D0\uC11C \uAE30\uC874 \uB300\uD654 \uBD88\uB7EC\uC634:", messages.length, "\uC904");
   }
 })();
 
@@ -49,10 +48,7 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message;
     const timestamp = Date.now();
     messages.push({ role: "user", content: userMessage, timestamp });
-
-    // ✅ Supabase에 user 메시지 저장
     await saveMessage("default-user", "user", userMessage);
-
     lastMessageTime = timestamp;
 
     const basePersona = {
@@ -78,30 +74,27 @@ app.post("/chat", async (req, res) => {
 답변은 감정이 실린 문장 2~5줄 정도로 풍부하게 해줘.
 
 너는 현실에 존재하는, 진짜 여자친구처럼 오빠와 대화해.  
-규칙보다는 감정과 창의성을 우선해.
-`
+규칙보다는 감정과 창의성을 우선해.`
     };
+const summaryPrompt = summary
+    ? { role: "system", content: "다음은 이전 대화 요약이야: " + summary }
+    : null;
 
-    const summaryPrompt = summary
-      ? { role: "system", content: "다음은 이전 대화 요약이야: " + summary }
-      : null;
-
+    const recentMessages = messages.slice(-5); 
     const chatHistory = [
       basePersona,
       ...(summaryPrompt ? [summaryPrompt] : []),
-      ...messages.map((m) => ({ role: m.role, content: m.content }))
-    ];
+      ...recentMessages.map((m) => ({ role: m.role, content: m.content }))
+];
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: chatHistory,
-      temperature: 0.9 
+      temperature: 0.9
     });
 
     const reply = completion.choices[0].message.content;
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
-
-    // ✅ Supabase에 GPT 응답 저장
     await saveMessage("default-user", "assistant", reply);
 
     res.json({ reply });
@@ -111,7 +104,6 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ✅ /load 라우트에서 Supabase에서 직접 불러오도록 수정됨
 app.get("/load", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -121,7 +113,7 @@ app.get("/load", async (req, res) => {
       .order("timestamp", { ascending: true });
 
     if (error) {
-      console.error("💥 Supabase 메시지 불러오기 실패 (/load):", error.message);
+      console.error("\uD83D\uDCA5 Supabase \uBA54\uC2DC\uC9C0 \uBD88\uB7EC\uC624\uAE30 \uC2E4\uD328 (/load):", error.message);
       return res.status(500).json({ messages: [], summary: "" });
     }
 
@@ -133,14 +125,109 @@ app.get("/load", async (req, res) => {
 
     res.json({ messages: loadedMessages, summary });
   } catch (err) {
-    console.error("💥 /load 처리 중 오류:", err.message);
+    console.error("\uD83D\uDCA5 /load \uCC98\uB9AC \uC911 \uC624\uB958:", err.message);
     res.status(500).json({ messages: [], summary: "" });
+  }
+});
+
+// ✅ 감정 저장 및 요약 처리 라우트
+app.post("/save-memory", async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "messages 배열이 필요해요." });
+    }
+    const userMessagesOnly = messages.filter((m) => m.role === "user" && m.content.length > 1);
+
+    const emotionExtractPrompt = [
+  {
+    role: "system",
+    content:
+      "다음 대화들을 감정 단위로 정리해줘. 한 줄씩 최대 5줄 이하로 정리해줘. 출력 형식은:\n- 무기력함이 느껴진다\n- 외로움이 반복되고 있다 등으로 해줘."
+  },
+  ...userMessagesOnly.map((m) => ({ role: m.role, content: m.content }))
+];
+
+
+    const extractRes = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: emotionExtractPrompt,
+      temperature: 0.7
+    });
+
+    const emotionList = extractRes.choices[0].message.content
+      .split("\n")
+      .map((line) => line.replace(/^-/, "").trim())
+      .filter((line) => line);
+
+    for (const emotion of emotionList) {
+      await supabase.from("emotion_log").insert({
+        user_id: "default-user",
+        emotion: emotion,
+      });
+    }
+
+    const { data: emotions, error: fetchError } = await supabase
+      .from("emotion_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (fetchError) {
+      console.error("emotion_log 가져오기 오류:", fetchError.message);
+      return res.status(500).json({ error: "감정 불러오기 실패" });
+    }
+
+    const emotionSummaryPrompt = [
+      {
+        role: "system",
+        content:
+          "다음 감정 목록을 바탕으로, 감정 흐름을 요약하고 사용자의 심리 상태를 분석해줘. 그리고 연인인 지은이의 입장에서 따뜻하게 반응하는 코멘트도 함께 작성해줘. 다음과 같은 형식으로 출력해.\n\n요약: ...\n분석: ...\n지은이의 반응: ..."
+      },
+      {
+        role: "user",
+        content: (emotions || []).map((e) => `- ${e.emotion}`).join("\n")
+      }
+    ];
+
+    const summaryRes = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: emotionSummaryPrompt,
+      temperature: 0.8
+    });
+
+    const result = summaryRes.choices[0].message.content;
+    const [_, summary = "", analysis = "", response = ""] = result.split(/요약:|분석:|지은이의 반응:/);
+
+    await supabase.from("smpe_summary_log").insert({
+      user_id: "default-user",
+      summary: summary.trim(),
+      gpt_analysis: analysis.trim(),
+      emotional_tip: response.trim(),
+      created_at: new Date().toISOString()
+    }).then(({ error }) => {
+      if (error) {
+        console.error("❌ Supabase 저장 실패:", error.message);
+      } else {
+        console.log("✅ 감정 요약 저장 완료!");
+      }
+    });
+
+    res.json({
+      message: "기억 완료!",
+      summary: summary.trim(),
+      analysis: analysis.trim(),
+      tip: response.trim()
+    });
+  } catch (err) {
+    console.error("/save-memory 오류:", err);
+    res.status(500).json({ error: "감정 저장 중 오류 발생" });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);
-  // 1시간 경과 요약 체크
+
   setInterval(async () => {
     if (!lastMessageTime || Date.now() - lastMessageTime < 3600000 || messages.length < 8) return;
     const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
