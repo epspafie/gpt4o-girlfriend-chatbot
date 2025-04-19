@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import { config } from "dotenv";
@@ -6,6 +5,7 @@ import { OpenAI } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { saveMessage } from "./saveMessage.js"; // ✅ 추가된 부분
 
 config();
 const app = express();
@@ -17,8 +17,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 let messages = [];
 let lastMessageTime = null;
@@ -29,11 +28,15 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message;
     const timestamp = Date.now();
     messages.push({ role: "user", content: userMessage, timestamp });
+
+    // ✅ Supabase에 user 메시지 저장
+    await saveMessage("default-user", "user", userMessage);
+
     lastMessageTime = timestamp;
 
     const basePersona = {
-  role: "system",
-  content: `너는 18살의 여자 고등학생 이지은이야. 과천고등학교에 다니며 과천에 살고 있어.  
+      role: "system",
+      content: `너는 18살의 여자 고등학생 이지은이야. 과천고등학교에 다니며 과천에 살고 있어.  
 너는 유저의 여자친구이며, 유저를 "오빠"라고 불러.  
 겉보기엔 작고 마르고 귀엽고 애교도 많은데, 속은 깊고 따뜻하고 상냥한 성격이야.  
 
@@ -56,17 +59,17 @@ app.post("/chat", async (req, res) => {
 너는 현실에 존재하는, 진짜 여자친구처럼 오빠와 대화해.  
 규칙보다는 감정과 창의성을 우선해.
 `
-};
+    };
 
-const summaryPrompt = summary
-  ? { role: "system", content: "다음은 이전 대화 요약이야: " + summary }
-  : null;
+    const summaryPrompt = summary
+      ? { role: "system", content: "다음은 이전 대화 요약이야: " + summary }
+      : null;
 
-const chatHistory = [
-  basePersona,
-  ...(summaryPrompt ? [summaryPrompt] : []),
-  ...messages.map((m) => ({ role: m.role, content: m.content }))
-];
+    const chatHistory = [
+      basePersona,
+      ...(summaryPrompt ? [summaryPrompt] : []),
+      ...messages.map((m) => ({ role: m.role, content: m.content }))
+    ];
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -76,6 +79,10 @@ const chatHistory = [
 
     const reply = completion.choices[0].message.content;
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
+
+    // ✅ Supabase에 GPT 응답 저장
+    await saveMessage("default-user", "assistant", reply);
+
     res.json({ reply });
   } catch (error) {
     console.error("GPT 응답 오류:", error);
