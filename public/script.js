@@ -73,14 +73,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   const res = await fetch("/load");
   const data = await res.json();
 
-  // ✅ 먼저 과거 대화부터 출력
-  data.messages.forEach((m) => {
-    const role = m.role === "user" ? "user" : "gpt";
-    addMessage(m.content, role);
-  });
+  // 기존 말풍선 제거 방지용 안전 조치 (의심되는 다른 렌더링 충돌 방지)
+  setTimeout(() => {
+    data.messages.forEach((m) => {
+      const role = m.role === "user" ? "user" : "gpt";
+      addMessage(m.content, role);
+    });
 
-  // ✅ 그 다음 요약 메시지 추가
-  if (data.summary) {
-    addMessage("[요약 기억] " + data.summary, "gpt");
-  }
+    if (data.summary) {
+      addMessage("[요약 기억] " + data.summary, "gpt");
+    }
+  }, 50); // 50ms 지연으로 강제 렌더 순서 확보
 });
