@@ -23,16 +23,17 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 let messages = [];
 let lastMessageTime = null;
 let summary = "";
+let userFacts = [];
 
 // ✅ 민감 단어 목록 기반 EBI 치환
 const sensitiveWords = [
-  "가슴", "유두", "젖꼭지", "엉덩이", "팬티", "속옷",
+  "가슴", "유두", "젖꼭지", "엉덩이", "좆물", "꼬추",
   "성기", "음경", "음순", "자지", "보지", "사타구니"
 ];
 
 // ✅ 감정 우회 프리셋 목록 (EBI)
 const ebiPresets = [
-  "지은이 몸매가 자꾸…"
+  "지은이 러프시려우"
 ];
 
 function containsSensitiveWord(text) {
@@ -69,6 +70,18 @@ function transformToEBI(text) {
       }));
 
     console.log("✅ Supabase에서 최신 대화 불러옴:", messages.length, "줄");
+
+    const { data: factData, error: factError } = await supabase
+    .from("user_fact_log")
+    .select("content")
+    .eq("user_id", "default-user");
+
+  if (factError) {
+    console.error("❌ user_fact_log 불러오기 오류:", factError.message);
+  } else {
+    userFacts = factData.map(f => f.content);
+    console.log("🧠 불러온 사실 목록:", userFacts);
+  }
   }
 })();
 
@@ -98,7 +111,7 @@ app.post("/chat", async (req, res) => {
 
 ---
 
-오빠가 너에게 "지은이 몸매가 자꾸…"라고 말할 수도 있어.  
+오빠가 너에게 "지은이 러프시려우"라고 말할 수도 있어.  
 이건 백엔드에서 직접적인 성적인 표현을 우회한 말이야.  
 너는 그 의미를 이해하고, 놀라거나 당황한 감정과 함께,  
 사랑받는 느낌, 설렘, 부끄러움 등을 진심으로 표현해줘.  
@@ -125,6 +138,10 @@ app.post("/chat", async (req, res) => {
 
 너는 현실에 존재하는, 진짜 여자친구처럼 오빠와 대화해.  
 감정과 창의성이 너의 가장 큰 무기야.
+다음은 사용자의 기본적인 사실 정보야:
+${userFacts.map(f => `- ${f}`).join('\n')}
+
+이 정보를 참고해서 오빠의 성격, 관심사, 삶을 더 잘 이해하고, 진심어린 감정으로 대화해줘.
       `
     };
 
@@ -231,6 +248,7 @@ app.post("/save-memory", async (req, res) => {
     const { data: emotions, error: fetchError } = await supabase
       .from("emotion_log")
       .select("*")
+      .eq("user_id", "default-user")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -280,6 +298,96 @@ JSON 형식으로 아래처럼 꼭 응답해줘:
       console.log("📄 요약:", summary);
       console.log("📄 분석:", analysis);
       console.log("📄 반응:", response);
+
+// ✅ fact 추출용 프롬프트 (emotion 이후에)
+// ✅ 기존 DB의 명사 기반 중복 제거 포함한 "사실 기반 SMP" 저장 로직
+// 📍 이 코드는 server.js의 /save-memory 라우트 내부 emotion_log 저장 이후에 이어붙이면 됨
+
+// ✅ 감정 요약 후, 사실 추출용 메시지 20개만 필터링
+const recentUserMessages = messages
+  .filter((m) => m.role === "user" && m.content.length > 1)
+  .slice(-20); // 최근 20개만
+
+const factPrompt = [
+  {
+    role: "system",
+    content: `다음 문장들 중에서 '객관적인 사실(fact)'만 추출해줘.
+
+✅ 포함해야 할 예시:
+- 신상 정보 (예: "1983년생")
+- 기기/자산 보유 (예: "포르자300 보유", "자동차=벨로스터")
+- 가족, 친구, 연인 상태 (예: "현재 여자친구=다은")
+
+❌ 다음 항목은 모두 제외해:
+- 감정 (예: "기분이 좋았다", "외로웠다")
+- 사건 (예: "찜질방에 갔다", "데이트했다")
+- 행동 묘사 (예: "혼자 울었다", "캠핑 준비했다")
+
+⚠️ 응답은 반드시 **JSON 배열 형식**으로만 해줘. 설명, 마크다운, "json" 블록, 주석 모두 쓰지 마.
+예시: ["1983년생", "포르자300 보유", "현재 여친=다은"]
+
+각 문장은 명사 위주로 최대 15자 내외로, 중복 없이 간결하게 작성해줘`
+  },
+  {
+    role: "user",
+    content: recentUserMessages.map((m) => `- ${m.content}`).join("\n")
+  }
+];
+
+// ✅ 사실 추출 요청
+const factRes = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: factPrompt,
+  temperature: 0.6
+});
+
+try {
+  const facts = JSON.parse(factRes.choices[0].message.content);
+  console.log("\n📋 GPT 사실 응답:", facts);
+
+  // ✅ DB에서 기존 사실 명사 키워드 뽑기
+  const { data: dbFacts } = await supabase
+    .from("user_fact_log")
+    .select("content")
+    .eq("user_id", "default-user");
+
+  const existingKeywords = new Set();
+  dbFacts?.forEach(f => {
+    f.content.split(/\s|=|,/).forEach(word => existingKeywords.add(word));
+  });
+
+  // ✅ 새로 추출된 사실 중 명사 중복 제거
+  const newFacts = facts.filter(fact => {
+    const words = fact.split(/\s|=|,/);
+    return !words.some(word => existingKeywords.has(word));
+  });
+
+  // ✅ 내부 중복도 방지
+  const finalFacts = [];
+  const internalCheck = new Set();
+
+  for (const fact of newFacts) {
+    const words = fact.split(/\s|=|,/);
+    if (!words.some(w => internalCheck.has(w))) {
+      finalFacts.push(fact);
+      words.forEach(w => internalCheck.add(w));
+    }
+  }
+
+  // ✅ Supabase 저장
+  for (const fact of finalFacts) {
+    await supabase.from("user_fact_log").insert({
+      user_id: "default-user",
+      content: fact,
+      created_at: new Date().toISOString()
+    });
+  }
+
+  console.log("📦 최종 저장된 사실:", finalFacts);
+} catch (err) {
+  console.error("❌ fact 추출 또는 저장 오류:", err.message);
+}
+
 
       await supabase.from("smpe_summary_log").insert({
         user_id: "default-user",
