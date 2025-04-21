@@ -388,6 +388,72 @@ try {
   console.error("❌ fact 추출 또는 저장 오류:", err.message);
 }
 
+// ✅ 사건 기록
+try {
+  const eventPrompt = [
+    {
+      role: "system",
+      content: `
+다음 대화를 참고하여 최근 발생한 사건이나 활동을 간단히 뽑아줘.
+"감정"이나 "사실"이 아닌, 실제 행동이나 상황 중심으로.
+
+예시:
+- 찜질방 방문
+- 모캠 준비
+- 여자친구와 전화
+
+조건:
+- 최대 5개 이하
+- 15자 이내 문장으로
+- JSON 배열로 출력 (마크다운 없이!)
+      `.trim()
+    },
+    {
+      role: "user",
+      content: userMessagesOnly.map(m => `- ${m.content}`).join("\n")
+    }
+  ];
+
+  const eventRes = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: eventPrompt,
+    temperature: 0.7
+  });
+
+  const eventRaw = eventRes.choices[0].message.content;
+  console.log("📋 GPT 사건 응답:", eventRaw);
+
+  let newEvents = [];
+  try {
+    newEvents = JSON.parse(eventRaw);
+  } catch (e) {
+    console.error("❌ 사건 JSON 파싱 실패:", e.message);
+  }
+
+  // 기존 5개 불러오기
+  const { data: existingEvents } = await supabase
+    .from("event_log")
+    .select("event")
+    .eq("user_id", "default-user")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const existingEventList = existingEvents?.map(e => e.event) || [];
+
+  const dedupedEvents = newEvents.filter(e => !existingEventList.includes(e));
+
+  for (const event of dedupedEvents) {
+    await supabase.from("event_log").insert({
+      user_id: "default-user",
+      event,
+      created_at: new Date().toISOString()
+    });
+  }
+
+  console.log("📌 저장된 사건:", dedupedEvents);
+} catch (err) {
+  console.error("❌ 사건 저장 실패:", err.message);
+}
 
       await supabase.from("smpe_summary_log").insert({
         user_id: "default-user",
