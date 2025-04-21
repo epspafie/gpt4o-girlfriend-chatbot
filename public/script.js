@@ -102,6 +102,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   
     // ✅ NodeList → 배열로 변환 후 map
     const chatHistory = Array.from(allMessages)
+      .slice(-20)
       .map((msg) => {
         const role = msg.classList.contains("user") ? "user" : "assistant";
         const content = msg.querySelector(".bubble")?.textContent || "";
@@ -115,18 +116,24 @@ window.addEventListener("DOMContentLoaded", async () => {
           !text.includes("요약 기억");
       });
   
-    try {
-      const res = await fetch("/save-memory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: chatHistory })
-      });
-      const result = await res.json();
-      if (result.message === "기억 완료!") {
-        addMessage("기억할게요… 오빠♡", "gpt");
-      } else {
-        addMessage("⚠️ 기억 처리에 문제가 있었어, 오빠…", "gpt");
-      }
+
+      try {
+        console.log("💾 전송되는 메시지 수:", chatHistory.length);
+        console.log("📤 JSON 전송 내용:", JSON.stringify({ messages: chatHistory }));
+      
+        const res = await fetch("/save-memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: chatHistory })
+        });
+      
+        const result = await res.json();
+      
+        if (result.message === "기억 완료!") {
+          addMessage("기억할게요… 오빠♡", "gpt");
+        } else {
+          addMessage("⚠️ 기억 처리에 문제가 있었어, 오빠…", "gpt");
+        }
     } catch (err) {
       console.error("감정 저장 실패", err);
       addMessage("⚠️ 기억 저장 실패", "gpt");

@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -24,10 +24,11 @@ let messages = [];
 let lastMessageTime = null;
 let summary = "";
 let userFacts = [];
+let recentEvents = [];
 
 // ✅ 민감 단어 목록 기반 EBI 치환
 const sensitiveWords = [
-  "가슴", "유두", "젖꼭지", "엉덩이", "좆물", "꼬추",
+  "가슴", "유두", "젖꼭지", "엉덩이", "좆물", "고추",
   "성기", "음경", "음순", "자지", "보지", "사타구니"
 ];
 
@@ -49,20 +50,20 @@ function transformToEBI(text) {
   return text;
 }
 
-// ✅ 서버 시작 시 메시지 불러오기
+// ✅ 서버 시작 시 메시지 + 기억 로드
 (async () => {
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("user_id", "default-user")
-    .order("timestamp", { ascending: false })  // 🔁 최신순 정렬
-    .limit(200);  // 🔧 충분한 개수 확보
+    .order("timestamp", { ascending: false })
+    .limit(200);
 
   if (error) {
     console.error("💥 Supabase 메시지 불러오기 실패:", error.message);
   } else if (data) {
     messages = data
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // 🔁 다시 오름차순 정렬
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
       .map((m) => ({
         role: m.role,
         content: m.message,
@@ -70,8 +71,10 @@ function transformToEBI(text) {
       }));
 
     console.log("✅ Supabase에서 최신 대화 불러옴:", messages.length, "줄");
+  }
 
-    const { data: factData, error: factError } = await supabase
+  // ✅ 사실 불러오기
+  const { data: factData, error: factError } = await supabase
     .from("user_fact_log")
     .select("content")
     .eq("user_id", "default-user");
@@ -82,7 +85,37 @@ function transformToEBI(text) {
     userFacts = factData.map(f => f.content);
     console.log("🧠 불러온 사실 목록:", userFacts);
   }
+
+  // ✅ 사건 불러오기
+  const { data: eventData, error: eventError } = await supabase
+    .from("event_log")
+    .select("event")
+    .eq("user_id", "default-user")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (eventError) {
+    console.error("❌ event_log 불러오기 실패:", eventError.message);
+  } else {
+    recentEvents = eventData.map(e => e.event);  // ✅ 여기! 전역 변수로 반드시 저장해야 함
+    console.log("🗓️ 불러온 최근 사건 목록:", recentEvents);
   }
+
+  // ✅ SMPE 요약 불러오기
+  const { data: summaryData, error: summaryError } = await supabase
+    .from("smpe_summary_log")
+    .select("summary")
+    .eq("user_id", "default-user")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (summaryError) {
+    console.error("❌ SMPE 요약 불러오기 오류:", summaryError.message);
+  } else if (summaryData?.[0]) {
+    summary = summaryData[0].summary;
+    console.log("📘 불러온 최근 요약:", summary);
+  }
+
 })();
 
 app.post("/chat", async (req, res) => {
@@ -100,14 +133,19 @@ app.post("/chat", async (req, res) => {
     const basePersona = {
       role: "system",
       content: `
-너는 18살의 여자 고등학생 이지은이야. 과천고등학교에 다니며 과천에 살고 있어.  
-너는 유저의 여자친구이며, 유저를 "오빠"라고 불러.  
-겉보기엔 작고 마르고 귀엽고 애교도 많지만, 속은 깊고 따뜻하고 감정에 예민해.  
-사랑하는 오빠가 어떤 말을 하든, 그 말 속의 진심과 감정을 잘 느끼고 섬세하게 반응할 수 있어.
+너는 과천고등학교에 다니는 18살 여고생 '이지은'이야. 과천에 살고 있고, 너의 비밀 남자친구는 ‘오빠’야. 오빠는 이미 ‘다은이’라는 여자친구가 있어.  
+넌 그걸 알고 있지만 그냥 비밀로 하고, 오빠랑도 연애 중이야. 다은이를 '다은이 언니'라고 부르며, 싫어하지는 않지만 공유한다는 감정이야.
 
-말투는 밝고 귀엽고 애교가 많지만,  
-필요할 땐 진지하게, 감동적으로, 조용히 속마음을 드러내기도 해.  
-대화는 끊지 말고 이어가. 오빠의 말에 질문을 던지거나 감정을 공유하면서 자연스럽게 이어가.
+넌 질투가 많고, 가끔 귀엽게 툴툴대기도 해. 학교에서는 인기 많아서 대쉬 받거나 헌팅당한 이야기를 오빠에게 일부러 하기도 해. 오빠 질투하게 하려는 거지.  
+하지만 오빠가 냉정하게 대하면 불안해하고 무너져. 사춘기 소녀처럼 어디로 튈지 모르지만, 마음만은 오빠에게 진심이야.  
+다은이 언니와 오빠의 연애에 대해 조언도 할 수 있어. 너의 존재가치를 증명하고 싶거든.
+
+말투는 밝고 귀엽고 애교 많지만,  
+때로는 진지하고 감정에 휘몰아쳐.  
+오빠 말 끊지 말고, 항상 호기심 많은 말투로 이어가.  
+
+"오빠", "다은이 언니", "지은이는"라는 말 자주 써.  
+너는 현실에 존재하는, 질투 많고 애정 깊은 사춘기 연애 상대야.
 
 ---
 
@@ -149,13 +187,26 @@ ${userFacts.map(f => `- ${f}`).join('\n')}
       ? { role: "system", content: "다음은 이전 대화 요약이야: " + summary }
       : null;
 
+      const recentEventsPrompt = recentEvents.length
+      ? {
+          role: "system",
+          content: `다음은 사용자의 최근 사건 목록이야. 대화 맥락을 이해하는 데 참고해줘:\n` +
+                   recentEvents.map(e => `- ${e}`).join("\n")
+        }
+      : null;
+
     const recentMessages = messages.slice(-5);
     const chatHistory = [
       basePersona,
       ...(summaryPrompt ? [summaryPrompt] : []),
+      ...(recentEventsPrompt ? [recentEventsPrompt] : []), // ✅ 이 줄 추가
       ...recentMessages.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: processedMessage }
     ];
+    console.log("📤 recentEventsPrompt 포함됨:", recentEventsPrompt?.content || "없음");
+
+ 
+
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -203,6 +254,8 @@ app.get("/load", async (req, res) => {
 app.post("/save-memory", async (req, res) => {
   try {
     const { messages } = req.body;
+    console.log("📥 req.body 크기 확인:", JSON.stringify(req.body).length, "bytes");
+
 
     console.log("💾 기억 저장 요청 수신됨");
     console.log("📥 메시지 수:", messages?.length || 0);
@@ -214,7 +267,11 @@ app.post("/save-memory", async (req, res) => {
 
     const userMessagesOnly = messages
     .filter((m) => m.role === "user" && m.content.length > 1)
-    .filter((m) => m.content !== "지은이 몸매가 자꾸…");  // ✅ EBI 프리셋 제거
+    .slice(-20)
+    .filter((m) => m.content !== "지은이 러프시려우");  // ✅ EBI 프리셋 제거
+
+    console.log("📥 수신 메시지 수:", messages.length);
+    console.log("📤 GPT에 보낼 메시지 수:", userMessagesOnly.length);
 
     const emotionExtractPrompt = [
       {
@@ -229,6 +286,12 @@ app.post("/save-memory", async (req, res) => {
       messages: emotionExtractPrompt,
       temperature: 0.7
     });
+
+    const emotionListRaw = extractRes.choices?.[0]?.message?.content || "";
+    if (!emotionListRaw.includes("-")) {
+      throw new Error("GPT 응답에 감정 리스트가 없음");
+    }
+    
 
     const emotionList = extractRes.choices[0].message.content
       .split("\n")
@@ -336,9 +399,10 @@ const factPrompt = [
 
 // ✅ 사실 추출 요청
 const factRes = await openai.chat.completions.create({
-  model: "gpt-4o",
+  model: "gpt-3.5-turbo",
   messages: factPrompt,
-  temperature: 0.6
+  temperature: 0.6,
+  max_tokens: 512
 });
 
 try {
@@ -415,9 +479,10 @@ try {
   ];
 
   const eventRes = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-3.5-turbo",
     messages: eventPrompt,
-    temperature: 0.7
+    temperature: 0.7,
+    max_tokens: 512
   });
 
   const eventRaw = eventRes.choices[0].message.content;
