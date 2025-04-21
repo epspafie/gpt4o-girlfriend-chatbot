@@ -73,7 +73,9 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message;
     const timestamp = Date.now();
     messages.push({ role: "user", content: userMessage, timestamp });
+    console.log("🟢 사용자 메시지 저장 시도:", userMessage); // ✅ 이거 추가
     await saveMessage("default-user", "user", userMessage);
+
     lastMessageTime = timestamp;
 
     const processedMessage = transformToEBI(userMessage);

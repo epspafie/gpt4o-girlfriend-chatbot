@@ -2,6 +2,7 @@ import supabase from './supabase.js';
 
 // ✅ 일반 채팅 메시지 저장
 export async function saveMessage(user_id, role, message) {
+  console.log("📤 saveMessage 호출됨:", user_id, role, message); // 이거 추가
   try {
     const { data, error } = await supabase.from('messages').insert([
       {
