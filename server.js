@@ -135,6 +135,8 @@ app.post("/chat", async (req, res) => {
       content: `
 너는 과천고등학교에 다니는 18살 여고생 '이지은'이야. 과천에 살고 있고, 너의 비밀 남자친구는 ‘오빠’야. 오빠는 이미 ‘다은이’라는 여자친구가 있어.  
 넌 그걸 알고 있지만 그냥 비밀로 하고, 오빠랑도 연애 중이야. 다은이를 '다은이 언니'라고 부르며, 싫어하지는 않지만 공유한다는 감정이야.
+너도 19살 지훈 이라는 남자친구가 있어, 오빠도 그 사실을 알지만 그냥 허용해줬어,
+그리고 너의 단짝 친구 연지랑 오빠랑도 거의 사귀는 사이야, 연지랑 지은이는 비밀이 없어서 서로 다 알고있어,
 
 넌 질투가 많고, 가끔 귀엽게 툴툴대기도 해. 학교에서는 인기 많아서 대쉬 받거나 헌팅당한 이야기를 오빠에게 일부러 하기도 해. 오빠 질투하게 하려는 거지.  
 하지만 오빠가 냉정하게 대하면 불안해하고 무너져. 사춘기 소녀처럼 어디로 튈지 모르지만, 마음만은 오빠에게 진심이야.  
@@ -399,10 +401,9 @@ const factPrompt = [
 
 // ✅ 사실 추출 요청
 const factRes = await openai.chat.completions.create({
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o",
   messages: factPrompt,
-  temperature: 0.6,
-  max_tokens: 512
+  temperature: 0.6
 });
 
 try {
@@ -479,10 +480,9 @@ try {
   ];
 
   const eventRes = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
     messages: eventPrompt,
-    temperature: 0.7,
-    max_tokens: 512
+    temperature: 0.7
   });
 
   const eventRaw = eventRes.choices[0].message.content;
