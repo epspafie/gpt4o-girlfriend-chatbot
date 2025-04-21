@@ -53,18 +53,22 @@ function transformToEBI(text) {
   const { data, error } = await supabase
     .from("messages")
     .select("*")
-    .order("timestamp", { ascending: true })
-    .limit(20);
+    .eq("user_id", "default-user")
+    .order("timestamp", { ascending: false })  // 🔁 최신순 정렬
+    .limit(200);  // 🔧 충분한 개수 확보
 
   if (error) {
     console.error("💥 Supabase 메시지 불러오기 실패:", error.message);
   } else if (data) {
-    messages = data.map((m) => ({
-      role: m.role,
-      content: m.message,
-      timestamp: new Date(m.timestamp).getTime(),
-    }));
-    console.log("✅ Supabase에서 기존 대화 불러옴:", messages.length, "줄");
+    messages = data
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // 🔁 다시 오름차순 정렬
+      .map((m) => ({
+        role: m.role,
+        content: m.message,
+        timestamp: new Date(m.timestamp).getTime()
+      }));
+
+    console.log("✅ Supabase에서 최신 대화 불러옴:", messages.length, "줄");
   }
 })();
 
@@ -182,11 +186,18 @@ app.get("/load", async (req, res) => {
 app.post("/save-memory", async (req, res) => {
   try {
     const { messages } = req.body;
+
+    console.log("💾 기억 저장 요청 수신됨");
+    console.log("📥 메시지 수:", messages?.length || 0);
+    console.log("📄 마지막 메시지:", messages?.[messages.length - 1]?.content || "(없음)");
+
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "messages 배열이 필요해요." });
     }
 
-    const userMessagesOnly = messages.filter((m) => m.role === "user" && m.content.length > 1);
+    const userMessagesOnly = messages
+    .filter((m) => m.role === "user" && m.content.length > 1)
+    .filter((m) => m.content !== "지은이 몸매가 자꾸…");  // ✅ EBI 프리셋 제거
 
     const emotionExtractPrompt = [
       {
@@ -214,6 +225,9 @@ app.post("/save-memory", async (req, res) => {
       });
     }
 
+// ✅ 딜레이 추가 (0.5초 ~ 1초 정도 안정)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     const { data: emotions, error: fetchError } = await supabase
       .from("emotion_log")
       .select("*")
@@ -228,7 +242,18 @@ app.post("/save-memory", async (req, res) => {
     const emotionSummaryPrompt = [
       {
         role: "system",
-        content: "다음 감정 목록을 바탕으로, 감정 흐름을 요약하고 사용자의 심리 상태를 분석해줘. 그리고 연인인 지은이의 입장에서 따뜻하게 반응하는 코멘트도 함께 작성해줘. 다음과 같은 형식으로 출력해.\n\n요약: ...\n분석: ...\n지은이의 반응: ..."
+        content: `
+다음 감정 목록을 바탕으로 사용자의 감정 흐름을 요약하고 분석해줘.
+또한 연인인 지은이의 따뜻한 반응도 함께 작성해줘.
+
+JSON 형식으로 아래처럼 꼭 응답해줘:
+
+{
+  "summary": "요약 내용",
+  "analysis": "분석 내용",
+  "response": "지은이의 반응"
+}
+        `
       },
       {
         role: "user",
@@ -243,28 +268,45 @@ app.post("/save-memory", async (req, res) => {
     });
 
     const result = summaryRes.choices[0].message.content;
-    const [_, summary = "", analysis = "", response = ""] = result.split(/요약:|분석:|지은이의 반응:/);
+    console.log("🧠 GPT 응답(JSON):", result);
 
-        await supabase.from("smpe_summary_log").insert({
-      user_id: "default-user",
-      summary: summary.trim(),
-      gpt_analysis: analysis.trim(),
-      emotional_tip: response.trim(),
-      created_at: new Date().toISOString()
-    })
+    try {
+      const parsed = JSON.parse(result);
+      const summary = parsed.summary?.trim() || "";
+      const analysis = parsed.analysis?.trim() || "";
+      const response = parsed.response?.trim() || "";
 
+      console.log("📦 SMPE 저장 내용 ↓");
+      console.log("📄 요약:", summary);
+      console.log("📄 분석:", analysis);
+      console.log("📄 반응:", response);
 
-    res.json({
-      message: "기억 완료!",
-      summary: summary.trim(),
-      analysis: analysis.trim(),
-      tip: response.trim()
-    });
+      await supabase.from("smpe_summary_log").insert({
+        user_id: "default-user",
+        summary,
+        gpt_analysis: analysis,
+        emotional_tip: response,
+        created_at: new Date().toISOString()
+      });
+
+      res.json({
+        message: "기억 완료!",
+        summary,
+        analysis,
+        tip: response
+      });
+
+    } catch (err) {
+      console.error("❌ JSON 파싱 오류:", err.message);
+      res.status(500).json({ error: "GPT 응답 파싱 실패" });
+    }
+
   } catch (err) {
-    console.error("/save-memory 오류:", err);
+    console.error("/save-memory 오류:", err.message);
     res.status(500).json({ error: "감정 저장 중 오류 발생" });
   }
-});
+}); // ✅ 이 괄호로 /save-memory 끝
+
 
 app.listen(PORT, () => {
   console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);

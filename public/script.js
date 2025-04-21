@@ -96,22 +96,25 @@ window.addEventListener("DOMContentLoaded", async () => {
   // ✅ 버튼 클릭 이벤트
   saveButton.addEventListener("click", async () => {
     console.log("💾 기억 저장 버튼 클릭됨");
-
-    const chatHistory = allMessages
-    .map((msg) => {
-      const role = msg.classList.contains("user") ? "user" : "assistant";
-      const content = msg.querySelector(".bubble")?.textContent || "";
-      return { role, content };
-    })
-    .filter((msg) => {
-      const text = msg.content;
-      return text && text.length > 1 &&
-        !text.includes("기억할게요") &&
-        !text.includes("⚠️") &&
-        !text.includes("요약 기억");
-    })  
-    .filter((msg) => msg.content && msg.content.length > 1); // 최소 글자수 조건
-    
+  
+    // ✅ 누락된 부분: 메시지 DOM 불러오기
+    const allMessages = document.querySelectorAll(".message");
+  
+    // ✅ NodeList → 배열로 변환 후 map
+    const chatHistory = Array.from(allMessages)
+      .map((msg) => {
+        const role = msg.classList.contains("user") ? "user" : "assistant";
+        const content = msg.querySelector(".bubble")?.textContent || "";
+        return { role, content };
+      })
+      .filter((msg) => {
+        const text = msg.content;
+        return text && text.length > 1 &&
+          !text.includes("기억할게요") &&
+          !text.includes("⚠️") &&
+          !text.includes("요약 기억");
+      });
+  
     try {
       const res = await fetch("/save-memory", {
         method: "POST",
@@ -129,4 +132,5 @@ window.addEventListener("DOMContentLoaded", async () => {
       addMessage("⚠️ 기억 저장 실패", "gpt");
     }
   });
+  
 });
