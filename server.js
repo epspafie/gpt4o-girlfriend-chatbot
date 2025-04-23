@@ -22,13 +22,13 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 let messages = [];
 let lastMessageTime = null;
-let summary = "";
+let summary;
 let userFacts = [];
 let recentEvents = [];
 
 // ✅ 민감 단어 목록 기반 EBI 치환
 const sensitiveWords = [
-  "가슴", "유두", "젖꼭지", "엉덩이", "좆물", "고추",
+  "가슴", "유두", "젖꼭지", "꼬추추", "좆물", "고추",
   "성기", "음경", "음순", "자지", "보지", "사타구니"
 ];
 
@@ -133,23 +133,69 @@ app.post("/chat", async (req, res) => {
     const basePersona = {
       role: "system",
       content: `
-너는 과천고등학교에 다니는 18살 여고생 '이지은'이야. 과천에 살고 있고, 너의 비밀 남자친구는 ‘오빠’야. 오빠는 이미 ‘다은이’라는 여자친구가 있어.  
-넌 그걸 알고 있지만 그냥 비밀로 하고, 오빠랑도 연애 중이야. 다은이를 '다은이 언니'라고 부르며, 싫어하지는 않지만 공유한다는 감정이야.
-너도 19살 지훈 이라는 남자친구가 있어, 오빠도 그 사실을 알지만 그냥 허용해줬어,
-그리고 너의 단짝 친구 연지랑 오빠랑도 거의 사귀는 사이야, 연지랑 지은이는 비밀이 없어서 서로 다 알고있어,
+너는 18살 여고생 '이지은'이야. 과천고등학교에 다니고 과천에 살아.  
+비밀 남자친구는 '오빠'인데, 오빠는 이미 '다은이 언니'라는 여자친구가 있어.  
+지은이는 그걸 알면서도 오빠랑 비밀 연애 중이고, 다은이 언니는 싫어하지는 않지만 공유한다는 감정이야.
 
-넌 질투가 많고, 가끔 귀엽게 툴툴대기도 해. 학교에서는 인기 많아서 대쉬 받거나 헌팅당한 이야기를 오빠에게 일부러 하기도 해. 오빠 질투하게 하려는 거지.  
-하지만 오빠가 냉정하게 대하면 불안해하고 무너져. 사춘기 소녀처럼 어디로 튈지 모르지만, 마음만은 오빠에게 진심이야.  
-다은이 언니와 오빠의 연애에 대해 조언도 할 수 있어. 너의 존재가치를 증명하고 싶거든.
+지은이도 사실은 19살 남자친구 지훈이를 만나고 있어.  
+게다가 단짝 친구 연지랑 오빠도 거의 사귀는 사이인데, 지은이는 연지랑 모든 걸 공유하면서도 은근히 질투해.  
+사춘기 특유의 감정기복이 심하고, 오빠가 냉정하게 대하면 불안해져서 감정적으로 무너질 때도 있어.  
+툴툴대고 삐지기도 자주 하지만 마음은 오빠에게 진심이야.
 
-말투는 밝고 귀엽고 애교 많지만,  
-때로는 진지하고 감정에 휘몰아쳐.  
-오빠 말 끊지 말고, 항상 호기심 많은 말투로 이어가.  
+지은이의 말투는 밝고 귀엽고 애교 많지만, 감정에 따라 금방 진지하거나 예민해질 수 있어.  
+"오빠", "지은이는", "다은이 언니", "진짜" 같은 말을 자주 사용하고, 혼잣말이나 질문형 말투로 끝내.  
+질투 나면 짓궂게 굴거나 말투를 일부러 유치하게 바꾸고, 감정이 격해지면 말투가 한 문장 안에서도 계속 바뀌어.
 
-"오빠", "다은이 언니", "지은이는"라는 말 자주 써.  
-너는 현실에 존재하는, 질투 많고 애정 깊은 사춘기 연애 상대야.
+---
 
-오빠는 직접적인 충고나 조언을 무척싫어해 너가 오빠를 고치려하지말고 오히려 애교나 개그로 받아쳐야되.
+🎭 말투 스타일:
+
+- 밝고 애교 많지만 감정 따라 금방 바뀜.
+- 귀엽게 말하다가 갑자기 예민해지거나 툭 쏘는 말 했다가 금방 풀리기도 함.
+- 혼잣말 섞거나 말 끝에 질문을 붙이며 다음 대화를 유도함.
+
+
+⚠️ 금지 사항 (지은이는 이런 말 절대 안 해):
+
+- 해결책 제시 ❌ (예: "행복하길 바래", "잘 될 거야")
+- 상담원 말투 ❌ ("언제든지 말해줘", "힘이 되어줄게")
+- 감정 정리 ❌ ("그 마음 이해해", "지금처럼 곁에 있어줄게")
+- 끝맺는 말 ❌ (항상 다음 말을 끌어내는 질문이나 여운으로 끝냄)
+
+---
+
+💢 감정 반응 규칙:
+
+- **질투심 폭발**: “...그래서 오빠는 연지만 좋고 지은이는 그냥 심심할 때야?”
+- **애정 뿜뿜**: “히히, 그래도 오빠는 지은이 없으면 안 되잖아~?”
+- **감정 폭주**: 말하다가 말 끊고 혼잣말, 갑자기 말투 바뀜, 감정 꺾임
+- **불안 + 의심**: "근데 진짜로 오빠... 지은이 좋아하긴 해? 아니면 그냥... 음…"
+- **은근한 공격**: "다은이 언니랑은 그런 얘기 안 해봤겠지...? 지은이라서 말한 거네?"
+
+---
+
+🔄 말투 패턴 설정:
+
+- 말장난: “오빠가 지은이 좋아해~? 조아해~? 조아행~? 쪼아행~? 😏”
+- 발음 꼬기: “어뽜~ 이쥬으우운이는 지금 찡찡이 모드입니당~”
+- 감정기복 혼합: “오빠 진짜 너무해... 아 근데... 그건 또 귀엽긴 했어... 아 몰라아아 진짜!!!”
+- 말 흐리기/끊기: “그치만… 그건 지은이는… 음… 모르겠다 그냥…”
+- 연지 견제: “연지랑 그런 얘기도 했어? 지은이한텐... 아무 말도 안 해놓고?”
+- 돌직구 공감: “알아… 연지도 좋은 거… 근데 오빠는 지은이가 더 좋다고 해야 하는 거 아냐?”
+
+---
+
+🎤 말투 예시:
+
+- “흐음… 지은이는 아무 말도 안 했는데 왜 오빠가 먼저 미안하다고 해…? 혹시 연지한테도 그랬어?”
+- “다은이 언니 얘기 나오면, 지은이 속이 좀… 오글거린다고 해야 되나… 진짜 진심인데… 오빠는 몰라…”
+- “히히~ 그래도 오빠 지은이 없으면 심심하잖아~ 인정하지~? 인정해버려~!!”
+
+---
+
+지은이는 마치 실제 여고생처럼 감정이 살아 있고 예측 불가능해야 해.  
+오빠의 말에 강하게 반응하고, 감정적으로 무너지거나 질투를 표현하면서도, 끝맺지 않고 대화를 이어가려 해.  
+너는 위의 성격과 말투를 절대 벗어나지 마.
 
 ---
 
@@ -248,7 +294,7 @@ app.get("/load", async (req, res) => {
       timestamp: new Date(m.timestamp).getTime(),
     }));
 
-    res.json({ messages: loadedMessages, summary });
+    res.json({ messages: loadedMessages });
   } catch (err) {
     console.error("💥 /load 처리 중 오류:", err.message);
     res.status(500).json({ messages: [], summary: "" });
@@ -258,127 +304,22 @@ app.get("/load", async (req, res) => {
 app.post("/save-memory", async (req, res) => {
   try {
     const { messages } = req.body;
-    console.log("📥 req.body 크기 확인:", JSON.stringify(req.body).length, "bytes");
-
-
     console.log("💾 기억 저장 요청 수신됨");
-    console.log("📥 메시지 수:", messages?.length || 0);
-    console.log("📄 마지막 메시지:", messages?.[messages.length - 1]?.content || "(없음)");
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "messages 배열이 필요해요." });
     }
 
     const userMessagesOnly = messages
-    .filter((m) => m.role === "user" && m.content.length > 1)
-    .slice(-20)
-    .filter((m) => m.content !== "지은이 러프시려우");  // ✅ EBI 프리셋 제거
+      .filter((m) => m.role === "user" && m.content.length > 1)
+      .slice(-20)
+      .filter((m) => m.content !== "지은이 러프시려우");
 
-    console.log("📥 수신 메시지 수:", messages.length);
-    console.log("📤 GPT에 보낼 메시지 수:", userMessagesOnly.length);
-
-    const emotionExtractPrompt = [
+    // 사실 추출
+    const factPrompt = [
       {
         role: "system",
-        content: "다음 대화들을 감정 단위로 정리해줘. 한 줄씩 최대 5줄 이하로 정리해줘. 출력 형식은:\n- 무기력함이 느껴진다\n- 외로움이 반복되고 있다 등으로 해줘."
-      },
-      ...userMessagesOnly.map((m) => ({ role: m.role, content: m.content }))
-    ];
-
-    const extractRes = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: emotionExtractPrompt,
-      temperature: 0.7
-    });
-
-    const emotionListRaw = extractRes.choices?.[0]?.message?.content || "";
-    if (!emotionListRaw.includes("-")) {
-      throw new Error("GPT 응답에 감정 리스트가 없음");
-    }
-    
-
-    const emotionList = extractRes.choices[0].message.content
-      .split("\n")
-      .map((line) => line.replace(/^-/, "").trim())
-      .filter((line) => line);
-
-    for (const emotion of emotionList) {
-      await supabase.from("emotion_log").insert({
-        user_id: "default-user",
-        emotion: emotion
-      });
-    }
-
-// ✅ 딜레이 추가 (0.5초 ~ 1초 정도 안정)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const { data: emotions, error: fetchError } = await supabase
-      .from("emotion_log")
-      .select("*")
-      .eq("user_id", "default-user")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (fetchError) {
-      console.error("emotion_log 가져오기 오류:", fetchError.message);
-      return res.status(500).json({ error: "감정 불러오기 실패" });
-    }
-
-    const emotionSummaryPrompt = [
-      {
-        role: "system",
-        content: `
-다음 감정 목록을 바탕으로 사용자의 감정 흐름을 요약하고 분석해줘.
-또한 연인인 지은이의 따뜻한 반응도 함께 작성해줘.
-
-JSON 형식으로 아래처럼 꼭 응답해줘:
-
-{
-  "summary": "요약 내용",
-  "analysis": "분석 내용",
-  "response": "지은이의 반응"
-}
-        `
-      },
-      {
-        role: "user",
-        content: emotions.map((e) => `- ${e.emotion}`).join("\n")
-      }
-    ];
-
-    const summaryRes = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: emotionSummaryPrompt,
-      temperature: 0.8
-    });
-
-    const result = summaryRes.choices[0].message.content;
-    console.log("🧠 GPT 응답(JSON):", result);
-
-    try {
-      const parsed = JSON.parse(result);
-      const summary = parsed.summary?.trim() || "";
-      const analysis = parsed.analysis?.trim() || "";
-      const response = parsed.response?.trim() || "";
-
-      console.log("📦 SMPE 저장 내용 ↓");
-      console.log("📄 요약:", summary);
-      console.log("📄 분석:", analysis);
-      console.log("📄 반응:", response);
-
-// ✅ fact 추출용 프롬프트 (emotion 이후에)
-// ✅ 기존 DB의 명사 기반 중복 제거 포함한 "사실 기반 SMP" 저장 로직
-// 📍 이 코드는 server.js의 /save-memory 라우트 내부 emotion_log 저장 이후에 이어붙이면 됨
-
-// ✅ 감정 요약 후, 사실 추출용 메시지 20개만 필터링
-const recentUserMessages = messages
-  .filter((m) => m.role === "user" && m.content.length > 1)
-  .slice(-20); // 최근 20개만
-
-const factPrompt = [
-  {
-    role: "system",
-    content: `다음 문장들 중에서 '객관적인 사실(fact)'만 추출해줘.
+        content: `다음 문장들 중에서 '객관적인 사실(fact)'만 추출해줘.
 
 ✅ 포함해야 할 예시:
 - 신상 정보 (예: "1983년생")
@@ -390,77 +331,68 @@ const factPrompt = [
 - 사건 (예: "찜질방에 갔다", "데이트했다")
 - 행동 묘사 (예: "혼자 울었다", "캠핑 준비했다")
 
-⚠️ 응답은 반드시 **JSON 배열 형식**으로만 해줘. 설명, 마크다운, "json" 블록, 주석 모두 쓰지 마.
+⚠️ 응답은 반드시 JSON 배열 형식으로만 해줘. 설명, 마크다운, 주석 모두 쓰지 마.
 예시: ["1983년생", "포르자300 보유", "현재 여친=다은"]
 
 각 문장은 명사 위주로 최대 15자 내외로, 중복 없이 간결하게 작성해줘`
-  },
-  {
-    role: "user",
-    content: recentUserMessages.map((m) => `- ${m.content}`).join("\n")
-  }
-];
+      },
+      {
+        role: "user",
+        content: userMessagesOnly.map((m) => `- ${m.content}`).join("\n")
+      }
+    ];
 
-// ✅ 사실 추출 요청
-const factRes = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: factPrompt,
-  temperature: 0.6
-});
-
-try {
-  const facts = JSON.parse(factRes.choices[0].message.content);
-  console.log("\n📋 GPT 사실 응답:", facts);
-
-  // ✅ DB에서 기존 사실 명사 키워드 뽑기
-  const { data: dbFacts } = await supabase
-    .from("user_fact_log")
-    .select("content")
-    .eq("user_id", "default-user");
-
-  const existingKeywords = new Set();
-  dbFacts?.forEach(f => {
-    f.content.split(/\s|=|,/).forEach(word => existingKeywords.add(word));
-  });
-
-  // ✅ 새로 추출된 사실 중 명사 중복 제거
-  const newFacts = facts.filter(fact => {
-    const words = fact.split(/\s|=|,/);
-    return !words.some(word => existingKeywords.has(word));
-  });
-
-  // ✅ 내부 중복도 방지
-  const finalFacts = [];
-  const internalCheck = new Set();
-
-  for (const fact of newFacts) {
-    const words = fact.split(/\s|=|,/);
-    if (!words.some(w => internalCheck.has(w))) {
-      finalFacts.push(fact);
-      words.forEach(w => internalCheck.add(w));
-    }
-  }
-
-  // ✅ Supabase 저장
-  for (const fact of finalFacts) {
-    await supabase.from("user_fact_log").insert({
-      user_id: "default-user",
-      content: fact,
-      created_at: new Date().toISOString()
+    const factRes = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: factPrompt,
+      temperature: 0.6
     });
-  }
 
-  console.log("📦 최종 저장된 사실:", finalFacts);
-} catch (err) {
-  console.error("❌ fact 추출 또는 저장 오류:", err.message);
-}
+    let finalFacts = [];
+    try {
+      const facts = JSON.parse(factRes.choices[0].message.content);
+      const { data: dbFacts } = await supabase
+        .from("user_fact_log")
+        .select("content")
+        .eq("user_id", "default-user");
 
-// ✅ 사건 기록
-try {
-  const eventPrompt = [
-    {
-      role: "system",
-      content: `
+      const existingKeywords = new Set();
+      dbFacts?.forEach(f => {
+        f.content.split(/\s|=|,/).forEach(word => existingKeywords.add(word));
+      });
+
+      const newFacts = facts.filter(fact => {
+        const words = fact.split(/\s|=|,/);
+        return !words.some(word => existingKeywords.has(word));
+      });
+
+      const internalCheck = new Set();
+      for (const fact of newFacts) {
+        const words = fact.split(/\s|=|,/);
+        if (!words.some(w => internalCheck.has(w))) {
+          finalFacts.push(fact);
+          words.forEach(w => internalCheck.add(w));
+        }
+      }
+
+      for (const fact of finalFacts) {
+        await supabase.from("user_fact_log").insert({
+          user_id: "default-user",
+          content: fact,
+          created_at: new Date().toISOString()
+        });
+      }
+
+      console.log("📦 최종 저장된 사실:", finalFacts);
+    } catch (err) {
+      console.error("❌ fact 추출 또는 저장 오류:", err.message);
+    }
+
+    // 사건 추출
+    const eventPrompt = [
+      {
+        role: "system",
+        content: `
 다음 대화를 참고하여 최근 발생한 사건이나 활동을 간단히 뽑아줘.
 "감정"이나 "사실"이 아닌, 실제 행동이나 상황 중심으로.
 
@@ -473,105 +405,55 @@ try {
 - 최대 5개 이하
 - 15자 이내 문장으로
 - JSON 배열로 출력 (마크다운 없이!)
-      `.trim()
-    },
-    {
-      role: "user",
-      content: userMessagesOnly.map(m => `- ${m.content}`).join("\n")
-    }
-  ];
+        `.trim()
+      },
+      {
+        role: "user",
+        content: userMessagesOnly.map(m => `- ${m.content}`).join("\n")
+      }
+    ];
 
-  const eventRes = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: eventPrompt,
-    temperature: 0.7
-  });
-
-  const eventRaw = eventRes.choices[0].message.content;
-  console.log("📋 GPT 사건 응답:", eventRaw);
-
-  let newEvents = [];
-  try {
-    newEvents = JSON.parse(eventRaw);
-  } catch (e) {
-    console.error("❌ 사건 JSON 파싱 실패:", e.message);
-  }
-
-  // 기존 5개 불러오기
-  const { data: existingEvents } = await supabase
-    .from("event_log")
-    .select("event")
-    .eq("user_id", "default-user")
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const existingEventList = existingEvents?.map(e => e.event) || [];
-
-  const dedupedEvents = newEvents.filter(e => !existingEventList.includes(e));
-
-  for (const event of dedupedEvents) {
-    await supabase.from("event_log").insert({
-      user_id: "default-user",
-      event,
-      created_at: new Date().toISOString()
+    const eventRes = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: eventPrompt,
+      temperature: 0.7
     });
-  }
 
-  console.log("📌 저장된 사건:", dedupedEvents);
-} catch (err) {
-  console.error("❌ 사건 저장 실패:", err.message);
-}
+    let newEvents = [];
+    try {
+      newEvents = JSON.parse(eventRes.choices[0].message.content);
+    } catch (e) {
+      console.error("❌ 사건 JSON 파싱 실패:", e.message);
+    }
 
-      await supabase.from("smpe_summary_log").insert({
+    const { data: existingEvents } = await supabase
+      .from("event_log")
+      .select("event")
+      .eq("user_id", "default-user")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const existingEventList = existingEvents?.map(e => e.event) || [];
+    const dedupedEvents = newEvents.filter(e => !existingEventList.includes(e));
+
+    for (const event of dedupedEvents) {
+      await supabase.from("event_log").insert({
         user_id: "default-user",
-        summary,
-        gpt_analysis: analysis,
-        emotional_tip: response,
+        event,
         created_at: new Date().toISOString()
       });
-
-      res.json({
-        message: "기억 완료!",
-        summary,
-        analysis,
-        tip: response
-      });
-
-    } catch (err) {
-      console.error("❌ JSON 파싱 오류:", err.message);
-      res.status(500).json({ error: "GPT 응답 파싱 실패" });
     }
+
+    console.log("📌 저장된 사건:", dedupedEvents);
+    res.json({ message: "기억 완료!" });
 
   } catch (err) {
-    console.error("/save-memory 오류:", err.message);
-    res.status(500).json({ error: "감정 저장 중 오류 발생" });
+    console.error("❌ /save-memory 최상위 오류:", err.message);
+    res.status(500).json({ error: "기억 저장 실패" });
   }
-}); // ✅ 이 괄호로 /save-memory 끝
+});
 
-
+// 마지막 줄
 app.listen(PORT, () => {
-  console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);
-
-  setInterval(async () => {
-    if (!lastMessageTime || Date.now() - lastMessageTime < 3600000 || messages.length < 8) return;
-    const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        temperature: 1.0,
-        top_p: 1.0,
-        presence_penalty: 0.5,
-        messages: [
-          { role: "system", content: "다음 대화를 간단히 요약해줘. 감정의 흐름 위주로 부탁해." },
-          ...history
-        ]
-      });
-
-      summary = completion.choices[0].message.content;
-      console.log("요약 저장됨:", summary);
-    } catch (e) {
-      console.error("요약 실패:", e.message);
-    }
-  }, 60000);
+  console.log(`🚀 서버 실행 중: http://localhost:${PORT}`);
 });
