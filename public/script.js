@@ -7,7 +7,9 @@ let voiceEnabled = false;
 // ✅ 삼성 TTS 사용 음성 출력
 function speak(text) {
   if (!voiceEnabled) return;
-  const utter = new SpeechSynthesisUtterance(text);
+  const cleanText = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF])+/g, "");
+
+  const utter = new SpeechSynthesisUtterance(cleanText);
   utter.lang = "ko-KR";
   utter.voice = speechSynthesis.getVoices().find(v => v.name.includes("Samsung") && v.name.includes("Female")) || null;
   utter.pitch = 1.1;
