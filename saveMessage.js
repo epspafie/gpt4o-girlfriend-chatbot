@@ -1,14 +1,17 @@
 import supabase from './supabase.js';
 
-// ✅ 일반 채팅 메시지 저장
-export async function saveMessage(user_id, role, message) {
-  console.log("📤 saveMessage 호출됨:", user_id, role, message); // 이거 추가
+// ✅ 일반 채팅 메시지 저장 (character + timestamp 포함)
+export async function saveMessage(user_id, role, message, character = null) {
+  const timestamp = new Date().toISOString();
+  console.log("📤 saveMessage 호출됨:", user_id, role, character, message);
   try {
     const { data, error } = await supabase.from('messages').insert([
       {
         user_id,
         role,
-        message
+        message,
+        character,
+        timestamp
       }
     ]);
 

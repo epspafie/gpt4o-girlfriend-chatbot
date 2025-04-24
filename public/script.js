@@ -4,7 +4,7 @@ const input = document.getElementById("user-input");
 const voiceToggle = document.getElementById("voice-toggle");
 let voiceEnabled = false;
 
-// 음성 읽기 함수 (삼성 TTS 사용)
+// ✅ 삼성 TTS 사용 음성 출력
 function speak(text) {
   if (!voiceEnabled) return;
   const utter = new SpeechSynthesisUtterance(text);
@@ -15,20 +15,22 @@ function speak(text) {
   speechSynthesis.speak(utter);
 }
 
+// ✅ 음성 ON/OFF 버튼
 voiceToggle.addEventListener("click", () => {
   voiceEnabled = !voiceEnabled;
   voiceToggle.textContent = voiceEnabled ? "음성 ON 🔊" : "음성 OFF 🔇";
 });
 
-function addMessage(text, role) {
+// ✅ 메시지 말풍선 생성
+function addMessage(text, role, isYeonji = false) {
   const msg = document.createElement("div");
   msg.classList.add("message", role);
 
   if (role === "gpt") {
     const avatar = document.createElement("img");
-    avatar.src = "gpt-profile.png";
-    avatar.alt = "GPT";
     avatar.classList.add("avatar");
+    avatar.src = isYeonji ? "gpt-profile2.png" : "gpt-profile.png";
+    avatar.alt = isYeonji ? "연지" : "지은";
     msg.appendChild(avatar);
   }
 
@@ -43,6 +45,7 @@ function addMessage(text, role) {
   if (role === "gpt") speak(text);
 }
 
+// ✅ 전송 이벤트 처리
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const message = input.value.trim();
@@ -52,21 +55,26 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
   addMessage("...", "gpt");
 
+  const isYeonji = message.includes("연지야"); // 🔁 연지 분기
+  const endpoint = isYeonji ? "/chat/yeonji" : "/chat";
+
   try {
-    const res = await fetch("/chat", {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
     });
+
     const data = await res.json();
     chatBox.lastChild.remove();
-    addMessage(data.reply, "gpt");
+    addMessage(data.reply, "gpt", isYeonji); // 연지 여부 전달
   } catch (err) {
     chatBox.lastChild.remove();
     addMessage("⚠️ GPT 응답 오류", "gpt");
   }
 });
 
+// ✅ 초기 메시지 로드 + 기억 버튼
 window.addEventListener("DOMContentLoaded", async () => {
   const res = await fetch("/load");
   const data = await res.json();
@@ -80,7 +88,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     addMessage("[요약 기억] " + data.summary, "gpt");
   }
 
-  // ✅ 기억 저장 버튼 DOM 로드 후 삽입
+  // 💾 기억 버튼 생성
   const saveButton = document.createElement("button");
   saveButton.textContent = "💾 기억할게요";
   saveButton.style.margin = "10px";
@@ -93,14 +101,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   saveButton.style.cursor = "pointer";
   document.body.appendChild(saveButton);
 
-  // ✅ 버튼 클릭 이벤트
+  // 💾 버튼 클릭 시 기억 저장
   saveButton.addEventListener("click", async () => {
     console.log("💾 기억 저장 버튼 클릭됨");
-  
-    // ✅ 누락된 부분: 메시지 DOM 불러오기
+
     const allMessages = document.querySelectorAll(".message");
-  
-    // ✅ NodeList → 배열로 변환 후 map
     const chatHistory = Array.from(allMessages)
       .slice(-20)
       .map((msg) => {
@@ -115,29 +120,24 @@ window.addEventListener("DOMContentLoaded", async () => {
           !text.includes("⚠️") &&
           !text.includes("요약 기억");
       });
-  
 
-      try {
-        console.log("💾 전송되는 메시지 수:", chatHistory.length);
-        console.log("📤 JSON 전송 내용:", JSON.stringify({ messages: chatHistory }));
-      
-        const res = await fetch("/save-memory", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: chatHistory })
-        });
-      
-        const result = await res.json();
-      
-        if (result.message === "기억 완료!") {
-          addMessage("기억할게요… 오빠♡", "gpt");
-        } else {
-          addMessage("⚠️ 기억 처리에 문제가 있었어, 오빠…", "gpt");
-        }
+    try {
+      console.log("💾 전송되는 메시지 수:", chatHistory.length);
+      const res = await fetch("/save-memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: chatHistory })
+      });
+
+      const result = await res.json();
+      if (result.message === "기억 완료!") {
+        addMessage("기억할게요… 오빠♡", "gpt");
+      } else {
+        addMessage("⚠️ 기억 처리에 문제가 있었어, 오빠…", "gpt");
+      }
     } catch (err) {
       console.error("감정 저장 실패", err);
       addMessage("⚠️ 기억 저장 실패", "gpt");
     }
   });
-  
 });
