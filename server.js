@@ -118,7 +118,10 @@ app.post("/chat", async (req, res) => {
     const cmp = generateCMP({ recentEvents, messages, userFacts });
     const jieunPrompt = getJieunPrompt();
 
-    const recentMessages = messages.slice(-5);
+    const recentMessages = messages
+          .filter(m => !sensitiveWords.some(w => m.content.includes(w)))
+          .slice(-6);
+
     recentMessages.forEach((m, i) => {
       console.log(`📨 [지은] 최근 대화 ${i + 1}: ${m.role} ${m.content}`);
     });
@@ -359,7 +362,11 @@ app.post("/chat/yeonji", async (req, res) => {
     console.log("🧾 연지 CP 불러옴");
 
     // 최근 대화 분석 후 감정 유도 설정
-    const recentMessages = messages.slice(-5);
+    // 연지용 예시
+    const recentMessages = messages
+     .filter(m => !sensitiveWords.some(w => m.content.includes(w)))
+     .slice(-6);
+
     recentMessages.forEach((m, i) => {
       console.log(`📨 최근 대화 ${i + 1}: ${m.role} ${m.content}`);
     });
