@@ -169,18 +169,21 @@ app.get("/load", async (req, res) => {
       .from("messages")
       .select("*")
       .eq("user_id", "default-user")
-      .order("timestamp", { ascending: true });
+      .order("timestamp", { ascending: false })   // 🔥 최신순으로
+      .limit(40);                                // 🔥 최근 20개만 가져오기
 
     if (error) {
       console.error("💥 Supabase 메시지 불러오기 실패 (/load):", error.message);
       return res.status(500).json({ messages: [], summary: "" });
     }
 
-    const loadedMessages = data.map((m) => ({
-      role: m.role,
-      content: m.message,
-      timestamp: new Date(m.timestamp).getTime(),
-    }));
+    const loadedMessages = data
+      .map((m) => ({
+        role: m.role,
+        content: m.message,
+        timestamp: new Date(m.timestamp).getTime(),
+      }))
+      .reverse(); // 🔥 최신순으로 불러왔으니까 다시 옛날순으로 뒤집어줘야 대화가 자연스럽게 나옴
 
     res.json({ messages: loadedMessages });
   } catch (err) {
@@ -188,6 +191,7 @@ app.get("/load", async (req, res) => {
     res.status(500).json({ messages: [], summary: "" });
   }
 });
+
 
 app.post("/save-memory", async (req, res) => {
   try {
