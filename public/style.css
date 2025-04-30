@@ -136,3 +136,15 @@ button {
 #save-memory:hover {
   background-color: #ff3366;
 }
+
+/* ✅ 캐릭터 선택 기능 (선택된 캐릭터에 빨간 테두리 표시) */
+.character-select {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  transition: border 0.2s ease-in-out;
+}
+
+.character-select.selected {
+  border: 2px solid red;
+}

@@ -10,10 +10,11 @@ import supabase from "./supabase.js";
 import { generateCMP } from "./gpt/cmp.js";
 import { getJieunPrompt } from "./gpt/cp/jieun.js";
 import { getYeonjiPrompt } from "./gpt/cp/yeonji.js";
-import { transformToEBI, getEbiSystemPrompt } from "./ebi.js";
+import { handleEbiPlus } from "./ebi-flow.js"; // 우리가 만든 흐름
 
 
 config();
+const sensitiveWords = ["기억할게요", "⚠️", "요약 기억"]; // 감정이나 시스템 메시지 제외용
 const app = express();
 const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
@@ -32,20 +33,9 @@ let recentEvents = [];
 
 
 
-// ✅ 민감 단어 목록 기반 EBI 치환
-const sensitiveWords = [
-  "가슴", "유두", "젖꼭지", "꼬추추", "좆물", "고추",
-  "성기", "음경", "음순", "자지", "보지", "사타구니"
-];
 
-// ✅ 감정 우회 프리셋 목록 (EBI)
-const ebiPresets = [
-  "지은이 러프시려우"
-];
 
-function containsSensitiveWord(text) {
-  return sensitiveWords.some((word) => text.toLowerCase().includes(word));
-}
+
 
 // ✅ 서버 시작 시 메시지 + 기억 로드
 (async () => {
@@ -63,7 +53,7 @@ function containsSensitiveWord(text) {
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
       .map((m) => ({
         role: m.role,
-        content: m.message,
+        content: m.message, 
         timestamp: new Date(m.timestamp).getTime()
       }));
 
@@ -103,20 +93,45 @@ function containsSensitiveWord(text) {
  
 })();
 
+app.post("/ebi-process", async (req, res) => {
+  console.log("🔥 [EBI] handleEbiPlus 호출됨");  // ✅ 추가!
+  const msg = req.body.message;
+  if (msg.startsWith("1 ")) {
+    const result = await handleEbiPlus(msg);
+    res.json({ reply: result });
+  } else {
+    res.status(400).json({ error: "EBI+ 트리거가 없습니다." });
+  }
+});
+
 app.post("/chat", async (req, res) => {
   try {
+    // ✅ 여기 ↓ 이 줄들로 교체
     const userMessage = req.body.message;
+    const isEbi = req.body.isEbi || false;
+    const character = req.body.character || "jieun";
+
+    if (isEbi) {
+      console.log("🔥 EBI 모드로 처리됩니다");
+      const character = req.body.character || "jieun"; // ✅ 추가
+
+      const reply = await handleEbiPlus(userMessage, "default-user", character); 
+      await saveMessage("default-user", "assistant", reply, "jieun");
+      return res.json({ reply });
+    }
     const timestamp = Date.now();
     messages.push({ role: "user", content: userMessage, timestamp });
     console.log("🟢 사용자 메시지 저장 시도:", userMessage);
-    await saveMessage("default-user", "user", userMessage, "jieun");
+    await saveMessage("default-user", "user", userMessage, null); // 캐릭터 없이 저장
+   
 
     lastMessageTime = timestamp;
 
-    const processedMessage = transformToEBI(userMessage);
+    const processedMessage = userMessage;
 
     const cmp = generateCMP({ recentEvents, messages, userFacts });
-    const jieunPrompt = getJieunPrompt();
+    const charPrompt = character === "yeonji" ? getYeonjiPrompt() : getJieunPrompt();
+
 
     const recentMessages = messages
           .filter(m => !sensitiveWords.some(w => m.content.includes(w)))
@@ -134,12 +149,12 @@ app.post("/chat", async (req, res) => {
     };
 
     const chatHistory = [
-      getJieunPrompt(),
-      getEbiSystemPrompt(),
+      charPrompt,              // ✅ 아까 만든 캐릭터별 프롬프트
       contextAnalysis,
       ...cmp,
       { role: "user", content: processedMessage }
     ];
+    
     
 
     console.log("📤 chatHistory 길이:", chatHistory.length);
@@ -152,7 +167,7 @@ app.post("/chat", async (req, res) => {
 
     const reply = completion.choices[0].message.content;
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
-    await saveMessage("default-user", "assistant", reply, "jieun");
+    await saveMessage("default-user", "assistant", reply, character); 
 
     res.json({ reply });
   } catch (error) {
@@ -181,6 +196,7 @@ app.get("/load", async (req, res) => {
       .map((m) => ({
         role: m.role,
         content: m.message,
+        character: m.character === "user" ? null : (m.character || null),
         timestamp: new Date(m.timestamp).getTime(),
       }))
       .reverse(); // 🔥 최신순으로 불러왔으니까 다시 옛날순으로 뒤집어줘야 대화가 자연스럽게 나옴
@@ -349,14 +365,17 @@ app.post("/chat/yeonji", async (req, res) => {
   try {
     const userMessage = req.body.message;
     const timestamp = Date.now();
-   messages.push({ role: "user", content: userMessage, timestamp });
-   console.log("🟢 [연지] 사용자 메시지 저장 시도:", userMessage);
+    messages.push({ role: "user", content: userMessage, timestamp });
+    console.log("🟢 [연지] 사용자 메시지 저장 시도:", userMessage);
+    await saveMessage("default-user", "user", userMessage, null); // 캐릭터 없이 저장
+    
 
     // ✅ 연지 캐릭터로 사용자 메시지도 저장
     await saveMessage("default-user", "user", userMessage);
 
 
-    const processedMessage = transformToEBI(userMessage);
+    const processedMessage = userMessage;
+
 
     // CMP 불러오기 (공통 프롬프트)
     const cmp = generateCMP({ recentEvents, messages, userFacts });
@@ -384,7 +403,6 @@ app.post("/chat/yeonji", async (req, res) => {
 
     const chatHistory = [
       getYeonjiPrompt(),
-      getEbiSystemPrompt(),
       contextAnalysis,
       ...cmp,
       { role: "user", content: processedMessage }

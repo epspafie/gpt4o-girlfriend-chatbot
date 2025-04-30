@@ -7,11 +7,22 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header id="chat-header">
-    <div class="profile-container">
-      <img src="gpt-profile.png" alt="GPT 프로필" class="profile-img-large" />
+  <header id="chat-header" style="display: flex; align-items: center; justify-content: space-between; padding: 10px;">
+    <!-- 👧 프로필 영역 (지은 + 연지) -->
+    <div class="profile-container" style="display: flex; align-items: center; gap: 8px;">
+      <img src="gpt-profile.png" alt="지은이" class="profile-img-large character-select" data-character="지은이" />
+      <img src="gpt-profile2.png" alt="연지" class="profile-img-large character-select" data-character="연지" />
     </div>
-    <button id="voice-toggle">🔊 음성 ON</button>
+  
+    <!-- 🔊 음성 + NSFW 토글 -->
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button id="voice-toggle">🔊 음성 ON</button>
+
+      <label for="ebiToggle" style="font-size: 14px; user-select: none;">
+        <input type="checkbox" id="ebiToggle" />
+        <strong>NSFW (EBI+)</strong>
+      </label>
+    </div>
   </header>
 
   <div id="chat-box"></div>
@@ -21,35 +32,7 @@
     <button type="submit">전송</button>
   </form>
 
-  
   <!-- 메인 스크립트 -->
-  <script src="script.js"></script>
-
-  <!-- ❌ 문제의 원인: 기존 말풍선 덮어쓰기 스크립트 (비활성화 처리) -->
-  <!-- 
-  <script>
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        const res = await fetch("/load");
-        const data = await res.json();
-        const messages = data.messages || [];
-
-        const chatBox = document.getElementById("chat-box");
-        chatBox.innerHTML = ""; // 기존 내용 초기화
-
-        messages.forEach((m) => {
-          const div = document.createElement("div");
-          div.className = m.role === "user" ? "user-msg" : "gpt-msg";
-          div.textContent = (m.role === "user" ? "🧑‍💬 " : "🧠 ") + m.content;
-          chatBox.appendChild(div);
-        });
-
-        chatBox.scrollTop = chatBox.scrollHeight;
-      } catch (e) {
-        console.error("대화 불러오기 실패:", e);
-      }
-    });
-  </script>
-  -->
+  <script src="script.js?v=10"></script>
 </body>
 </html>

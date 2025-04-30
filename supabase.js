@@ -10,3 +10,33 @@ const supabase = createClient(
 );
 
 export default supabase;
+
+// ✅ NSFW 대화 저장
+export async function saveNsfwChatLog(user_id, character, role, message) {
+  const { error } = await supabase.from("nsfw_chat_log").insert([
+    {
+      user_id,
+      character,
+      role,
+      message
+    }
+  ]);
+  if (error) console.error("💥 NSFW 로그 저장 실패:", error.message);
+}
+
+// ✅ NSFW 최근 대화 불러오기
+export async function getRecentNsfwMessages(user_id, limit = 5) {
+  const { data, error } = await supabase
+    .from("nsfw_chat_log")
+    .select("role, message, character")
+    .eq("user_id", user_id)
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("💥 NSFW 최근 대화 불러오기 실패:", error.message);
+    return [];
+  }
+
+  return data.reverse(); // 오래된 순서로 정렬
+}

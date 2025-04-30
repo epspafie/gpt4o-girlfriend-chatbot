@@ -3,6 +3,7 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const voiceToggle = document.getElementById("voice-toggle");
 let voiceEnabled = false;
+let selectedCharacter = "jieun";
 
 // ✅ 삼성 TTS 사용 음성 출력
 function speak(text) {
@@ -57,19 +58,31 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
   addMessage("...", "gpt");
 
-  const isYeonji = message.includes("연지야"); // 🔁 연지 분기
-  const endpoint = isYeonji ? "/chat/yeonji" : "/chat";
+ 
+  const isEbi = document.getElementById("ebiToggle").checked;
+  const endpoint = "/chat";
+
+  console.log("✅ 전송된 endpoint:", endpoint);
+
 
   try {
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message: message,
+        isEbi: isEbi,
+        character: selectedCharacter // ✅ 클릭으로 선택된 캐릭터 전송
+      })
+      
     });
+    
+    
 
     const data = await res.json();
     chatBox.lastChild.remove();
-    addMessage(data.reply, "gpt", isYeonji); // 연지 여부 전달
+    addMessage(data.reply, "gpt", selectedCharacter === "yeonji");
+
   } catch (err) {
     chatBox.lastChild.remove();
     addMessage("⚠️ GPT 응답 오류", "gpt");
@@ -78,6 +91,17 @@ form.addEventListener("submit", async (e) => {
 
 // ✅ 초기 메시지 로드 + 기억 버튼
 window.addEventListener("DOMContentLoaded", async () => {
+
+    // ✅ 캐릭터 선택 이벤트 등록
+    document.querySelectorAll(".character-select").forEach(img => {
+      img.addEventListener("click", () => {
+        document.querySelectorAll(".character-select").forEach(i => i.classList.remove("selected"));
+        img.classList.add("selected");
+        selectedCharacter = img.dataset.character === "연지" ? "yeonji" : "jieun";
+        console.log("👤 선택된 캐릭터:", selectedCharacter);
+      });
+    });
+
   const res = await fetch("/load");
   const data = await res.json();
 
