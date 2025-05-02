@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { saveMessage } from "./saveMessage.js";
 import supabase from "./supabase.js";
+import { getRecentUnifiedMessages } from "./supabase.js";
 import { generateCMP } from "./gpt/cmp.js";
 import { getJieunPrompt } from "./gpt/cp/jieun.js";
 import { getYeonjiPrompt } from "./gpt/cp/yeonji.js";
@@ -14,6 +15,30 @@ import { handleEbiPlus } from "./ebi-flow.js"; // 우리가 만든 흐름
 
 
 config();
+const MODEL_MAP = {
+  main_gpt: "meta-llama/llama-4-maverick",    // 실제 대화 모델
+  summary: "gpt-4o",                      // 요약, fact, event 용
+  fact_gpt: "gpt-4o",
+  event_gpt: "gpt-4o"
+};
+
+const PROVIDER_MAP = {
+  main_gpt: "openrouter",
+  summary: "openai",
+  fact_gpt: "openai",
+  event_gpt: "openai"
+};
+
+const BASE_URL_MAP = {
+  openai: "https://api.openai.com/v1/chat/completions",
+  openrouter: "https://openrouter.ai/api/v1/chat/completions"
+};
+
+const API_KEY_MAP = {
+  openai: process.env.OPENAI_API_KEY,
+  openrouter: process.env.OPENROUTER_API_KEY
+};
+
 const sensitiveWords = ["기억할게요", "⚠️", "요약 기억"]; // 감정이나 시스템 메시지 제외용
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +55,30 @@ let messages = [];
 let lastMessageTime = null;
 let userFacts = [];
 let recentEvents = [];
+
+async function callGpt({ task = "main", messages, temperature = 0.9 }) {
+  const provider = PROVIDER_MAP[task];
+  const baseUrl = BASE_URL_MAP[provider];
+  const apiKey = API_KEY_MAP[provider];
+  const model = MODEL_MAP[task];
+
+  const res = await fetch(baseUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature
+    })
+  });
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "⚠️ 응답 없음";
+}
+
 
 
 
@@ -133,19 +182,20 @@ app.post("/chat", async (req, res) => {
     const charPrompt = character === "yeonji" ? getYeonjiPrompt() : getJieunPrompt();
 
 
-    const recentMessages = messages
-          .filter(m => !sensitiveWords.some(w => m.content.includes(w)))
-          .slice(-6);
-
+    let recentMessages = await getRecentUnifiedMessages("default-user", 6);
+    recentMessages = recentMessages
+      .filter(m => !sensitiveWords.some(w => m.message.includes(w)))
+      .slice(-6);
+    
     recentMessages.forEach((m, i) => {
-      console.log(`📨 [지은] 최근 대화 ${i + 1}: ${m.role} ${m.content}`);
+      console.log(`📨 [지은] 최근 대화 ${i + 1}: ${m.role} ${m.message}`);
     });
 
     const contextAnalysis = {
       role: "system",
       content:
         "다음은 최근 대화 흐름이야. 감정, 질투, 연지 언급 등을 참고해서 자연스럽게 반응해줘:\n" +
-        recentMessages.map((m) => `- ${m.role}: ${m.content}`).join("\n")
+        recentMessages.map((m) => `- ${m.role}: ${m.message}`).join("\n")
     };
 
     const chatHistory = [
@@ -159,13 +209,8 @@ app.post("/chat", async (req, res) => {
 
     console.log("📤 chatHistory 길이:", chatHistory.length);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: chatHistory,
-      temperature: 0.9
-    });
+    const reply = await callGpt({ task: "main_gpt", messages: chatHistory, temperature: 0.9 });
 
-    const reply = completion.choices[0].message.content;
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
     await saveMessage("default-user", "assistant", reply, character); 
 
@@ -250,15 +295,11 @@ app.post("/save-memory", async (req, res) => {
       }
     ];
 
-    const factRes = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: factPrompt,
-      temperature: 0.6
-    });
-
+    const factReply = await callGpt({ task: "fact_gpt", messages: factPrompt, temperature: 0.6 });
     let finalFacts = [];
+
     try {
-      const facts = JSON.parse(factRes.choices[0].message.content);
+      const facts = JSON.parse(factReply);
       const { data: dbFacts } = await supabase
         .from("user_fact_log")
         .select("content")
@@ -321,15 +362,11 @@ app.post("/save-memory", async (req, res) => {
       }
     ];
 
-    const eventRes = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: eventPrompt,
-      temperature: 0.7
-    });
-
+    const eventReply = await callGpt({ task: "event_gpt", messages: eventPrompt, temperature: 0.7 });
     let newEvents = [];
+
     try {
-      newEvents = JSON.parse(eventRes.choices[0].message.content);
+      newEvents = JSON.parse(eventReply);
     } catch (e) {
       console.error("❌ 사건 JSON 파싱 실패:", e.message);
     }
@@ -386,9 +423,11 @@ app.post("/chat/yeonji", async (req, res) => {
 
     // 최근 대화 분석 후 감정 유도 설정
     // 연지용 예시
-    const recentMessages = messages
-     .filter(m => !sensitiveWords.some(w => m.content.includes(w)))
-     .slice(-6);
+    let recentMessages = await getRecentUnifiedMessages("default-user", 6);
+    recentMessages = recentMessages
+      .filter(m => !sensitiveWords.some(w => m.message.includes(w)))
+      .slice(-6);
+    
 
     recentMessages.forEach((m, i) => {
       console.log(`📨 최근 대화 ${i + 1}: ${m.role} ${m.content}`);
@@ -398,7 +437,7 @@ app.post("/chat/yeonji", async (req, res) => {
       role: "system",
       content:
         "다음은 최근 대화 흐름이야. 지은 언급, 질투, 오빠 행동 등을 참고해서 자연스럽게 반응해줘:\n" +
-        recentMessages.map((m) => `- ${m.role}: ${m.content}`).join("\n")
+        recentMessages.map((m) => `- ${m.role}: ${m.message}`).join("\n")
     };
 
     const chatHistory = [
@@ -411,13 +450,8 @@ app.post("/chat/yeonji", async (req, res) => {
 
     console.log("📤 [연지] chatHistory 길이:", chatHistory.length);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: chatHistory,
-      temperature: 0.9
-    });
+    const reply = await callGpt({ task: "main_gpt", messages: chatHistory, temperature: 0.9 });
 
-    const reply = completion.choices[0].message.content;
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
     await saveMessage("default-user", "assistant", reply, "yeonji");
 

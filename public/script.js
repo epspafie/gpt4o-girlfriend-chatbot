@@ -5,6 +5,20 @@ const voiceToggle = document.getElementById("voice-toggle");
 let voiceEnabled = false;
 let selectedCharacter = "jieun";
 
+//띄어쓰기 함수
+function renderPreservedSpacing(text) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .split("\n")
+    .map(line => `<p>${line}</p>`)
+    .join(""); // ✅ <p> 태그로 줄바꿈 처리
+
+  return escaped;
+}
+
+
 // ✅ 삼성 TTS 사용 음성 출력
 function speak(text) {
   if (!voiceEnabled) return;
@@ -39,7 +53,7 @@ function addMessage(text, role, isYeonji = false) {
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble");
-  bubble.textContent = text;
+  bubble.innerHTML = renderPreservedSpacing(text);
   msg.appendChild(bubble);
 
   chatBox.appendChild(msg);
@@ -77,11 +91,34 @@ form.addEventListener("submit", async (e) => {
       
     });
     
+    //글자 바탕색 처리리
+    function highlightQuotedText(text) {
+      return text.replace(/"([^"]+)"/g, '<span class="quote">"$1"</span>');
+    }
     
-
+    function renderPreservedSpacing(text) {
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      
+      return escaped
+        .split("\n")
+        .map(line => `<p>${highlightQuotedText(line)}</p>`)
+        .join("");
+    }
+    
     const data = await res.json();
+    console.log("GPT 응답 내용:\n", JSON.stringify(data.reply));
     chatBox.lastChild.remove();
-    addMessage(data.reply, "gpt", selectedCharacter === "yeonji");
+    if (typeof data.reply === "string") {
+      data.reply = data.reply
+        .replace(/([.?!])\s/g, "$1\n")              // 문장부호 뒤 줄바꿈
+        .replace(/(\*)\s/g, "$1\n")                 // * + 공백 뒤 줄바꿈
+        .replace(/(\*)(?=\w|[가-힣])/g, "$1\n");    // * 바로 뒤에 문자 시작되면 줄바꿈
+    }
+    
+      addMessage(data.reply, "gpt", selectedCharacter === "yeonji");
 
   } catch (err) {
     chatBox.lastChild.remove();

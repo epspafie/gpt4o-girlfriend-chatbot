@@ -3,6 +3,7 @@ import supabase from './supabase.js';
 // ✅ 일반 채팅 메시지 저장 (character + timestamp 포함)
 export async function saveMessage(user_id, role, message, character = null) {
   const timestamp = new Date().toISOString();
+  if (character === null) character = "user";  // ✅ 보존수정: null이면 user로 보정
   console.log("📤 saveMessage 호출됨:", user_id, role, character, message);
   try {
     const { data, error } = await supabase.from('messages').insert([

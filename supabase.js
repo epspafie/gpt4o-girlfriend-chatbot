@@ -39,4 +39,28 @@ export async function getRecentNsfwMessages(user_id, limit = 5) {
   }
 
   return data.reverse(); // 오래된 순서로 정렬
+
+
+// ✅ 통합 메시지 불러오기 (SFW + NSFW)
+}
+
+// 통합 메시지 불러오기 (SFW + NSFW)
+export async function getRecentUnifiedMessages(user_id = 'default-user', limit = 6) {
+  const [sfwRes, nsfwRes] = await Promise.all([
+    supabase.from('messages')
+      .select('role, message, character, timestamp')
+      .eq('user_id', user_id)
+      .order('timestamp', { ascending: false })
+      .limit(limit),
+    supabase.from('nsfw_chat_log')
+      .select('role, message, character, timestamp')
+      .eq('user_id', user_id)
+      .order('timestamp', { ascending: false })
+      .limit(limit)
+  ]);
+
+  const all = [...(sfwRes.data || []), ...(nsfwRes.data || [])];
+  return all
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .slice(-limit);
 }
