@@ -22,6 +22,13 @@
         <input type="checkbox" id="ebiToggle" />
         <strong>NSFW (EBI+)</strong>
       </label>
+
+      <!-- ✅ NSFW 모델 선택 드롭다운 UI -->
+<div id="nsfw-model-section" style="display: none; margin-top: 6px;">
+  <small>현재 모델: <span id="selected-nsfw-model" style="font-weight: bold;">(기본값)</span></small><br/>
+  <select id="nsfw-model-dropdown" style="margin-top: 4px; width: 170px; padding: 5px; font-size: 14px;"></select>
+</div>
+
     </div>
   </header>
 
@@ -32,6 +39,15 @@
     <button type="submit">전송</button>
   </form>
 
+  <script>
+    const ebiCheckbox = document.getElementById("ebiToggle");
+    const nsfwModelSection = document.getElementById("nsfw-model-section");
+  
+    ebiCheckbox.addEventListener("change", () => {
+      nsfwModelSection.style.display = ebiCheckbox.checked ? "block" : "none";
+    });
+  </script>
+  
   <!-- 메인 스크립트 -->
   <script src="script.js?v=10"></script>
 </body>

@@ -16,7 +16,9 @@ import { handleEbiPlus } from "./ebi-flow.js"; // 우리가 만든 흐름
 
 config();
 const MODEL_MAP = {
-  main_gpt: "meta-llama/llama-4-maverick",    // 실제 대화 모델
+  //main_gpt: "deepseek/deepseek-chat",
+  main_gpt: "deepseek/deepseek-chat-v3-0324",
+  //main_gpt: "meta-llama/llama-4-maverick:CentML",    // 실제 대화 모델
   summary: "gpt-4o",                      // 요약, fact, event 용
   fact_gpt: "gpt-4o",
   event_gpt: "gpt-4o"
@@ -76,6 +78,11 @@ async function callGpt({ task = "main", messages, temperature = 0.9 }) {
   });
 
   const data = await res.json();
+  if (data.usage) {
+    console.log(`🔢 [${task}] Token usage:`, data.usage);
+  } else {
+    console.warn(`⚠️ [${task}] usage 정보 없음. 응답 데이터:`, data);
+  }
   return data.choices?.[0]?.message?.content || "⚠️ 응답 없음";
 }
 
@@ -159,15 +166,17 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message;
     const isEbi = req.body.isEbi || false;
     const character = req.body.character || "jieun";
+    const nsfwModel = req.body.selectedNsfwModel || null; // ✅ 사용자가 선택한 NSFW 모델
 
     if (isEbi) {
       console.log("🔥 EBI 모드로 처리됩니다");
-      const character = req.body.character || "jieun"; // ✅ 추가
-
-      const reply = await handleEbiPlus(userMessage, "default-user", character); 
-      await saveMessage("default-user", "assistant", reply, "jieun");
+      const cmp = generateCMP({ recentEvents, messages, userFacts });  // ✅ 먼저 선언
+      const reply = await handleEbiPlus(userMessage, "default-user", character, cmp, nsfwModel);  // ✅ 그다음 사용
+      await saveMessage("default-user", "assistant", reply, character);
       return res.json({ reply });
     }
+    
+
     const timestamp = Date.now();
     messages.push({ role: "user", content: userMessage, timestamp });
     console.log("🟢 사용자 메시지 저장 시도:", userMessage);
@@ -209,7 +218,7 @@ app.post("/chat", async (req, res) => {
 
     console.log("📤 chatHistory 길이:", chatHistory.length);
 
-    const reply = await callGpt({ task: "main_gpt", messages: chatHistory, temperature: 0.9 });
+    const reply = await callGpt({ task: "main_gpt", messages: chatHistory, temperature: 0.9, stream: true });
 
     messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
     await saveMessage("default-user", "assistant", reply, character); 

@@ -83,11 +83,14 @@ form.addEventListener("submit", async (e) => {
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: message,
-        isEbi: isEbi,
-        character: selectedCharacter // ✅ 클릭으로 선택된 캐릭터 전송
-      })
+     // ✅ 전송 이벤트 처리 내부
+body: JSON.stringify({
+  message: message,
+  isEbi: isEbi,
+  character: selectedCharacter,
+  selectedNsfwModel: localStorage.getItem("selectedNsfwModel") || "gryphe/mythomax-l2-13b"  // 추가
+})
+
       
     });
     
@@ -129,6 +132,57 @@ form.addEventListener("submit", async (e) => {
 // ✅ 초기 메시지 로드 + 기억 버튼
 window.addEventListener("DOMContentLoaded", async () => {
 
+    // ✅ NSFW 모델 리스트 로드
+    try {
+      const res = await fetch("/gpt/NSFWmodelList.json");
+      const models = await res.json();
+  
+      const dropdown = document.getElementById("nsfw-model-dropdown");
+      const selectedText = document.getElementById("selected-nsfw-model");
+  
+      // ✅ 드롭다운 초기화
+      dropdown.innerHTML = "";
+  
+      // ✅ 드롭다운 옵션 채우기
+      models.forEach((model, idx) => {
+        const option = document.createElement("option");
+        option.value = model.key;
+        option.textContent = `${model.name} (${model.description})`;
+  
+        // isDefault가 true이면 선택
+        if (model.isDefault) {
+          option.selected = true;
+          selectedText.textContent = model.name;
+          localStorage.setItem("selectedNsfwModel", model.key);
+        }
+  
+        dropdown.appendChild(option);
+      });
+  
+      // ✅ 선택 변경 시 로컬 저장
+      dropdown.addEventListener("change", () => {
+        const selectedKey = dropdown.value;
+        const selectedName = dropdown.options[dropdown.selectedIndex].textContent;
+  
+        localStorage.setItem("selectedNsfwModel", selectedKey);
+        selectedText.textContent = selectedName;
+      });
+  
+      // ✅ 이전에 저장된 값이 있으면 적용
+      const savedKey = localStorage.getItem("selectedNsfwModel");
+      if (savedKey) {
+        const match = [...dropdown.options].find(o => o.value === savedKey);
+        if (match) {
+          dropdown.value = savedKey;
+          selectedText.textContent = match.textContent;
+        }
+      }
+  
+      console.log("✅ NSFW 모델 드롭다운 초기화 완료");
+    } catch (err) {
+      console.error("❌ NSFW 모델 목록 불러오기 실패", err);
+    }
+  
     // ✅ 캐릭터 선택 이벤트 등록
     document.querySelectorAll(".character-select").forEach(img => {
       img.addEventListener("click", () => {
