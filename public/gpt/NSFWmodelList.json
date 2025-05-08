@@ -1,0 +1,39 @@
+[
+    {
+      "name": "MythoMax",
+      "key": "gryphe/mythomax-l2-13b:Together",
+      "description": "미써맥스",
+      "isDefault": true
+    },
+    {
+      "name": "LLaMA Maverick",
+      "key": "meta-llama/llama-4-maverick:CentML",
+      "description": "메버릭"
+    },
+    {
+      "name": "DeepSeek V3",
+      "key": "deepseek/deepseek-chat-v3-0324:DeepInfra",
+      "description": "딥시크v3"
+    },
+    {
+      "name": "Mistral Nemo 12B Celeste",
+      "key": "nothingiisreal/mn-celeste-12b",
+      "description": "미스트럴나노 좀비쌈"
+    },
+    {
+      "name": "Dolphin 2.9.2 Mixtral 8x22B",
+      "key": "cognitivecomputations/dolphin-mixtral-8x22b:NovitaAI",
+      "description": "돌핀 0.9달러"
+    },
+    {
+      "name": "Unslopnemo 12B",
+      "key": "thedrummer/unslopnemo-12b:Enfer",
+      "description": "언슬롭니모"
+    },
+    {
+      "name": "WizardLM-2 8x22B",
+      "key": "microsoft/wizardlm-2-8x22b:DeepInfra",
+      "description": "위자드"
+    }
+  ]
+  
